@@ -1,0 +1,10 @@
+docker build -f .\ProReviseWeb.API\Dockerfile -t pro-revise-web:pr-1 .
+docker tag pro-revise-web:pr-1 localhost:5001/pro-revise-web:pr-1
+docker push localhost:5001/pro-revise-web:pr-1
+docker run -d -p -e ASPNETCORE_ENVIRONMENT=Docker 7021:80 pro-revise-web:pr-1
+
+------------------------------------
+
+docker tag pro-revise-web:pr-1 localhost:5002/pro-revise-web:pr-1
+docker push localhost:5002/pro-revise-web:pr-1
+docker rmi localhost:5002/pro-revise-web:pr-1
