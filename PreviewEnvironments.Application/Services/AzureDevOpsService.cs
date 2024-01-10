@@ -7,30 +7,28 @@ using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 using PreviewEnvironments.Application.Models.Docker;
 using PreviewEnvironments.Application.Services.Abstractions;
 using System.Diagnostics;
-using System.Text;
-using System.Text.Json;
+using Microsoft.Extensions.Options;
 
 namespace PreviewEnvironments.Application.Services;
 
-// v7x4lwoidwji65sgz2krquvltinn4cqj7bvrwgtxqpatqaarn23q
 internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
 {
     private readonly ILogger<AzureDevOpsService> _logger;
     private readonly IDockerService _dockerService;
     private readonly HttpClient _httpClient;
-    private readonly ApplicationConfiguration _configuration;
+    private readonly AzureDevOpsConfiguration _configuration;
 
     public AzureDevOpsService(
         ILogger<AzureDevOpsService> logger,
         IDockerService dockerService,
         HttpClient httpClient,
-        ApplicationConfiguration configuration
+        IOptions<ApplicationConfiguration> options
     )
     {
         _logger = logger;
         _dockerService = dockerService;
         _httpClient = httpClient;
-        _configuration = configuration;
+        _configuration = options.Value.AzureDevOps;
 
         _dockerService.ContainerExpiredAsync += ContainerExpiredAsync;
     }
@@ -56,21 +54,32 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
                 ),
                 cancellationToken
             );
-
-            // ASSUMPTION: Assuming that the project name is the docker
-            // repository name and the tag is the pr number with 'pr-' prefixed.
+            
+            SupportedBuildDefinition? supportedBuildDefinition = _configuration
+                .SupportedBuildDefinitions
+                .FirstOrDefault(sbd => sbd.BuildDefinitionId == buildComplete.BuildDefinitionId);
+            
+            if (supportedBuildDefinition is null)
+            {
+                return;
+            }
+            
+            // ASSUMPTION: Assuming that the tag is the pr number with 'pr-' prefixed.
             int port = await _dockerService.RestartContainerAsync(
-                buildComplete.ProjectName,
+                supportedBuildDefinition.ImageName,
                 $"pr-{buildComplete.PrNumber}",
+                supportedBuildDefinition.DockerRegistry,
                 cancellationToken: cancellationToken
             );
 
+            string accessToken = GetAccessToken();
+            
             await PostPreviewAvailableMessage(new()
             {
                 Organization = _configuration.Organization,
                 Project = _configuration.Project,
                 RepositoryId = _configuration.RepositoryId,
-                AccessToken = _configuration.AzAccessToken,
+                AccessToken = accessToken,
                 PullRequestNumber = buildComplete.PrNumber,
                 PreviewEnvironmentAddress = $"http://localhost:{port}",
             });
@@ -113,12 +122,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
             Query = "api-version=7.0"
         };
 
-        HttpRequestMessage request = new(HttpMethod.Post, builder.ToString());
-
-        request.Headers.Authorization = new(
-            scheme: "Basic",
-            Convert.ToBase64String(Encoding.ASCII.GetBytes($":{message.AccessToken}"))
-        );
+        string accessToken = GetAccessToken();
 
         PullRequestThread thread = new()
         {
@@ -133,9 +137,9 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
             Status = "closed",
         };
 
-        string body = JsonSerializer.Serialize(thread);
-
-        request.Content = new StringContent(body, mediaType: new("application/json"));
+        HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.ToString())
+            .WithAuthorization(accessToken)
+            .WithBody(thread);
 
         _ = await _httpClient.SendAsync(request);
     }
@@ -152,12 +156,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
             Query = "api-version=7.0"
         };
 
-        HttpRequestMessage request = new(HttpMethod.Post, builder.ToString());
-
-        request.Headers.Authorization = new(
-            scheme: "Basic",
-            Convert.ToBase64String(Encoding.ASCII.GetBytes($":{_configuration.AzAccessToken}"))
-        );
+        string accessToken = GetAccessToken();
 
         PullRequestThread thread = new()
         {
@@ -166,17 +165,19 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
                 new()
                 {
                     CommentType = "system",
-                    Content = "Preview environment has been stopped to save resources." +
-                    " To restart the container, re-queue the build." +
-                    " If your containers stop too early consider increasing the container timeout time.",
+                    Content = """
+                        Preview environment has been stopped to save resources.
+                        To restart the container, re-queue the build.
+                        If your containers stop too early consider increasing the container timeout time.
+                        """,
                 },
             },
             Status = "closed",
         };
-
-        string body = JsonSerializer.Serialize(thread);
-
-        request.Content = new StringContent(body, mediaType: new("application/json"));
+        
+        HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.ToString())
+            .WithAuthorization(accessToken)
+            .WithBody(thread);
 
         _ = await _httpClient.SendAsync(request);
     }
@@ -300,6 +301,8 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
         PullRequestStatusState state,
         int port = 0)
     {
+        string accessToken = GetAccessToken();
+        
         return new()
         {
             // TODO: Test token scopes to get minimum required scopes.
@@ -307,12 +310,32 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
             Organization = _configuration.Organization,
             Project = _configuration.Project,
             RepositoryId = _configuration.RepositoryId,
-            AccessToken = _configuration.AzAccessToken,
+            AccessToken = accessToken,
             PullRequestNumber = buildComplete.PrNumber,
             BuildPipelineAddress = buildComplete.BuildUrl.ToString(),
             State = state,
             Port = port
         };
+    }
+
+    private string GetAccessToken()
+    {
+        string? accessToken = EnvironmentHelper
+            .GetAzAccessToken()
+            .WithFallback(_configuration.AzAccessToken);
+
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            throw new Exception(
+                $"""
+                 {Constants.EnvVariables.AzAccessToken} was not present in the
+                 environmental variables or appsettings.json. This token is
+                 required to interact with Azure DevOps APIs.
+                 """
+            );
+        }
+
+        return accessToken;
     }
 
     public void Dispose()

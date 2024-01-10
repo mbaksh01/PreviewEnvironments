@@ -1,4 +1,4 @@
-﻿namespace PreviewEnvironments.Application.Services;
+﻿namespace PreviewEnvironments.Application.Services.Abstractions;
 
 public interface IApplicationLifetimeService : IAsyncDisposable
 {

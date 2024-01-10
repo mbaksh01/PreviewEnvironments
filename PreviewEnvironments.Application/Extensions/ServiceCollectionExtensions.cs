@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Services;
 using PreviewEnvironments.Application.Services.Abstractions;
 
@@ -14,7 +16,7 @@ public static class ServiceCollectionExtensions
                     sp.GetRequiredService<ILogger<AzureDevOpsService>>(),
                     sp.GetRequiredService<IDockerService>(),
                     sp.GetRequiredService<HttpClient>(),
-                    sp.GetAppConfiguration()
+                    sp.GetRequiredService<IOptions<ApplicationConfiguration>>()
                 )
             )
             .AddSingleton<IDockerService, DockerService>()

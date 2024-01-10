@@ -11,4 +11,6 @@ public sealed class BuildComplete
     public required int PrNumber { get; set; }
 
     public required Uri BuildUrl { get; set; }
+
+    public required int BuildDefinitionId { get; set; }
 }

@@ -14,7 +14,7 @@ public static class AzureDevOpsContractMapper
         {
             "succeeded" => BuildStatus.Succeeded,
             "partially succeeded" => BuildStatus.PartiallySucceeded,
-            "failed" or _ => BuildStatus.Failed,
+            _ => BuildStatus.Failed,
         };
 
         return new BuildComplete
@@ -24,6 +24,7 @@ public static class AzureDevOpsContractMapper
             PrNumber = contract.Resource.TriggerInfo?.PrNumber ?? 0,
             ProjectName = contract.Resource.Project?.Name ?? string.Empty,
             BuildUrl = contract.Resource.Links.Web.Href,
+            BuildDefinitionId = contract.Resource.Definition.Id
         };
     }
 

@@ -6,6 +6,8 @@ using PreviewEnvironments.Application.Models.Docker;
 using PreviewEnvironments.Application.Services.Abstractions;
 using System.Collections.Concurrent;
 using System.Net;
+using Microsoft.Extensions.Options;
+using PreviewEnvironments.Application.Models;
 
 namespace PreviewEnvironments.Application.Services;
 
@@ -20,17 +22,17 @@ namespace PreviewEnvironments.Application.Services;
 internal class DockerService : IDockerService, IAsyncDisposable
 {
     private readonly ILogger<DockerService> _logger;
+    private readonly ApplicationConfiguration _configuration;
     private readonly DockerClient _dockerClient;
     private readonly Progress<JSONMessage> _progress;
     private readonly ConcurrentDictionary<string, DockerContainer> _containers;
 
-    private readonly TimeSpan _containerTimeout = TimeSpan.FromSeconds(10);
-
     public event Func<DockerContainer, Task>? ContainerExpiredAsync;
 
-    public DockerService(ILogger<DockerService> logger)
+    public DockerService(ILogger<DockerService> logger, IOptions<ApplicationConfiguration> configuration)
     {
         _logger = logger;
+        _configuration = configuration.Value;
         _dockerClient = new DockerClientConfiguration().CreateClient();
         _progress = new Progress<JSONMessage>();
         _containers = new ConcurrentDictionary<string, DockerContainer>();
@@ -40,6 +42,11 @@ internal class DockerService : IDockerService, IAsyncDisposable
 
     public async Task<bool> InitialiseAsync(CancellationToken cancellationToken = default)
     {
+        if (_configuration.RunLocalRegistry == false)
+        {
+            return true;
+        }
+        
         string registryVersion = "latest";
 
         await PullImageAsync("registry", registryVersion, cancellationToken);
@@ -245,22 +252,24 @@ internal class DockerService : IDockerService, IAsyncDisposable
     {
         _logger.LogInformation("Attempting to find and stop expired containers.");
 
-        IEnumerable<DockerContainer> containers;
+        DockerContainer[] containers;
 
         lock (_containers)
         {
+            TimeSpan timeout = TimeSpan.FromSeconds(_configuration.Docker.ContainerTimeoutSeconds);
+            
             containers = _containers
                 .Where(c =>
-                    c.Value.CreatedTime + _containerTimeout < DateTimeOffset.UtcNow
-                    && c.Value.CanExpire
-                    && c.Value.Expired is false
+                    c.Value.CreatedTime + timeout < DateTimeOffset.UtcNow
+                    && c.Value is { CanExpire: true, Expired: false }
                 )
-                .Select(c => c.Value);
+                .Select(c => c.Value)
+                .ToArray();
         }
 
         _logger.LogInformation(
             "Found {containerCount} containers to expire.",
-            containers.Count()
+            containers.Length
         );
 
         foreach (DockerContainer container in containers)

@@ -166,7 +166,7 @@ public partial class BCDefinition
     public object[] Drafts { get; set; }
 
     [JsonPropertyName("id")]
-    public long Id { get; set; }
+    public int Id { get; set; }
 
     [JsonPropertyName("name")]
     public string Name { get; set; }
