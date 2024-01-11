@@ -16,7 +16,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
     private readonly ILogger<AzureDevOpsService> _logger;
     private readonly IDockerService _dockerService;
     private readonly HttpClient _httpClient;
-    private readonly AzureDevOpsConfiguration _configuration;
+    private readonly ApplicationConfiguration _configuration;
 
     public AzureDevOpsService(
         ILogger<AzureDevOpsService> logger,
@@ -28,7 +28,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
         _logger = logger;
         _dockerService = dockerService;
         _httpClient = httpClient;
-        _configuration = options.Value.AzureDevOps;
+        _configuration = options.Value;
 
         _dockerService.ContainerExpiredAsync += ContainerExpiredAsync;
     }
@@ -56,6 +56,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
             );
             
             SupportedBuildDefinition? supportedBuildDefinition = _configuration
+                .AzureDevOps
                 .SupportedBuildDefinitions
                 .FirstOrDefault(sbd => sbd.BuildDefinitionId == buildComplete.BuildDefinitionId);
             
@@ -77,12 +78,12 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
             
             await PostPreviewAvailableMessage(new()
             {
-                Organization = _configuration.Organization,
-                Project = _configuration.Project,
-                RepositoryId = _configuration.RepositoryId,
+                Organization = _configuration.AzureDevOps.Organization,
+                Project = _configuration.AzureDevOps.Project,
+                RepositoryId = _configuration.AzureDevOps.RepositoryId,
                 AccessToken = accessToken,
                 PullRequestNumber = buildComplete.PrNumber,
-                PreviewEnvironmentAddress = $"http://localhost:{port}",
+                PreviewEnvironmentAddress = $"{_configuration.Scheme}://{_configuration.Host}:{port}",
             });
 
             await PostPullRequestStatus(
@@ -153,7 +154,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
         {
             Host = _configuration.Host,
             Scheme = _configuration.Scheme,
-            Path = $"{_configuration.Organization}/{_configuration.Project}/_apis/git/repositories/{_configuration.RepositoryId}/pullRequests/{pullRequestNumber}/threads",
+            Path = $"{_configuration.AzureDevOps.Organization}/{_configuration.AzureDevOps.Project}/_apis/git/repositories/{_configuration.AzureDevOps.RepositoryId}/pullRequests/{pullRequestNumber}/threads",
             Query = "api-version=7.0"
         };
 
@@ -308,9 +309,9 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
         {
             // TODO: Test token scopes to get minimum required scopes.
             // Code - Read and write, status
-            Organization = _configuration.Organization,
-            Project = _configuration.Project,
-            RepositoryId = _configuration.RepositoryId,
+            Organization = _configuration.AzureDevOps.Organization,
+            Project = _configuration.AzureDevOps.Project,
+            RepositoryId = _configuration.AzureDevOps.RepositoryId,
             AccessToken = accessToken,
             PullRequestNumber = buildComplete.PrNumber,
             BuildPipelineAddress = buildComplete.BuildUrl.ToString(),
@@ -323,7 +324,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
     {
         string? accessToken = EnvironmentHelper
             .GetAzAccessToken()
-            .WithFallback(_configuration.AzAccessToken);
+            .WithFallback(_configuration.AzureDevOps.AzAccessToken);
 
         if (string.IsNullOrWhiteSpace(accessToken))
         {

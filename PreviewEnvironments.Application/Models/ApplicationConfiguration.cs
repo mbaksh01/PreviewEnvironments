@@ -9,6 +9,10 @@ public sealed class ApplicationConfiguration
     public bool RunLocalRegistry { get; set; }
     
     public int ContainerTimeoutIntervalSeconds { get; set; }
+
+    public string Host { get; set; } = "localhost";
+
+    public string Scheme { get; set; } = "http";
 }
 
 public sealed class DockerConfiguration

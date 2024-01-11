@@ -19,7 +19,7 @@ namespace PreviewEnvironments.Application.Services;
  * TODO: Move configuration to app settings.
  * TODO: Post message to say container has expired.
  */
-internal class DockerService : IDockerService, IAsyncDisposable
+internal class DockerService : IDockerService
 {
     private readonly ILogger<DockerService> _logger;
     private readonly ApplicationConfiguration _configuration;
