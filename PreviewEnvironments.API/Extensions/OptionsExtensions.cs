@@ -14,9 +14,15 @@ public static class OptionsExtensions
         {
             azureDevOpsConfig.ProjectName = buildComplete.Resource.Project.Name;
         }
+           
+        if (buildComplete.Resource.Project?.Url is not null)
+        {
+            azureDevOpsConfig.Scheme = buildComplete.Resource.Project.Url.Scheme;
+            azureDevOpsConfig.Host = buildComplete.Resource.Project.Url.Host;
+        }
         
         azureDevOpsConfig.RepositoryId = buildComplete.Resource.Repository.Id;
-        
+
         return options;
     }
 }
