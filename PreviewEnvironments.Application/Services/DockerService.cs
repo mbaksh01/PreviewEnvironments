@@ -356,7 +356,7 @@ internal class DockerService : IDockerService
 
     private void Progress_ProgressChanged(object? sender, JSONMessage e)
     {
-        _logger.LogInformation(
+        _logger.LogDebug(
             "{timeNano} [{id}] Progress: {progress}, Error Message: {errorMessage}",
             e.TimeNano,
             e.ID,
