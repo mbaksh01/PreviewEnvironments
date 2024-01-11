@@ -28,7 +28,7 @@ public sealed class AzureDevOpsConfiguration
     
     public string Organization { get; set; } = string.Empty;
 
-    public string Project { get; set; } = string.Empty;
+    public string ProjectName { get; set; } = string.Empty;
 
     public Guid RepositoryId { get; set; }
 
@@ -40,6 +40,8 @@ public sealed class AzureDevOpsConfiguration
 
 public sealed class SupportedBuildDefinition
 {
+    public string ProjectName { get; set; } = string.Empty;
+    
     public int BuildDefinitionId { get; set; }
 
     public string ImageName { get; set; } = string.Empty;

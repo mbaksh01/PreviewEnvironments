@@ -152,10 +152,7 @@ internal class DockerService : IDockerService
 
         imageName = imageName.ToLower();
 
-        SupportedBuildDefinition? supportedBuildDefinition = _configuration
-            .AzureDevOps
-            .SupportedBuildDefinitions
-            .FirstOrDefault(sbd => sbd.BuildDefinitionId == buildDefinitionId);
+        SupportedBuildDefinition? supportedBuildDefinition = _configuration.GetBuildDefinition(buildDefinitionId);
 
         if (supportedBuildDefinition is null)
         {

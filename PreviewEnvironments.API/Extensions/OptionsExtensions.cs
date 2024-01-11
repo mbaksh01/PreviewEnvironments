@@ -12,7 +12,7 @@ public static class OptionsExtensions
 
         if (string.IsNullOrWhiteSpace(buildComplete.Resource.Project?.Name) == false)
         {
-            azureDevOpsConfig.Project = buildComplete.Resource.Project.Name;
+            azureDevOpsConfig.ProjectName = buildComplete.Resource.Project.Name;
         }
         
         azureDevOpsConfig.RepositoryId = buildComplete.Resource.Repository.Id;

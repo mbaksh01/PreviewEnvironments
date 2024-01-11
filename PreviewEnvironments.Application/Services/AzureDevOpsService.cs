@@ -79,7 +79,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
             await PostPreviewAvailableMessage(new()
             {
                 Organization = _configuration.AzureDevOps.Organization,
-                Project = _configuration.AzureDevOps.Project,
+                Project = _configuration.AzureDevOps.ProjectName,
                 RepositoryId = _configuration.AzureDevOps.RepositoryId,
                 AccessToken = accessToken,
                 PullRequestNumber = buildComplete.PrNumber,
@@ -154,7 +154,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
         {
             Host = _configuration.Host,
             Scheme = _configuration.Scheme,
-            Path = $"{_configuration.AzureDevOps.Organization}/{_configuration.AzureDevOps.Project}/_apis/git/repositories/{_configuration.AzureDevOps.RepositoryId}/pullRequests/{pullRequestNumber}/threads",
+            Path = $"{_configuration.AzureDevOps.Organization}/{_configuration.AzureDevOps.ProjectName}/_apis/git/repositories/{_configuration.AzureDevOps.RepositoryId}/pullRequests/{pullRequestNumber}/threads",
             Query = "api-version=7.0"
         };
 
@@ -310,7 +310,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
             // TODO: Test token scopes to get minimum required scopes.
             // Code - Read and write, status
             Organization = _configuration.AzureDevOps.Organization,
-            Project = _configuration.AzureDevOps.Project,
+            Project = _configuration.AzureDevOps.ProjectName,
             RepositoryId = _configuration.AzureDevOps.RepositoryId,
             AccessToken = accessToken,
             PullRequestNumber = buildComplete.PrNumber,
