@@ -1,6 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Services;
 using PreviewEnvironments.Application.Services.Abstractions;
@@ -9,18 +8,19 @@ namespace PreviewEnvironments.Application.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddApplication(this IServiceCollection services)
+    public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
-        return services
-            .AddScoped<IAzureDevOpsService>(sp => new AzureDevOpsService(
-                    sp.GetRequiredService<ILogger<AzureDevOpsService>>(),
-                    sp.GetRequiredService<IDockerService>(),
-                    sp.GetRequiredService<HttpClient>(),
-                    sp.GetRequiredService<IOptions<ApplicationConfiguration>>()
-                )
-            )
+        _ = services
+            .AddScoped<IAzureDevOpsService, AzureDevOpsService>()
             .AddSingleton<IDockerService, DockerService>()
             .AddScoped<HttpClient>()
             .AddSingleton<ApplicationLifetimeService>();
+        
+        _ = services.Configure<ApplicationConfiguration>(options =>
+        {
+            configuration.GetSection(Constants.AppSettings.Sections.Configuration).Bind(options);
+        });
+
+        return services;
     }
 }
