@@ -152,8 +152,8 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
 
         UriBuilder builder = new()
         {
-            Host = _configuration.Host,
-            Scheme = _configuration.Scheme,
+            Host = _configuration.AzureDevOps.Host,
+            Scheme = _configuration.AzureDevOps.Scheme,
             Path = $"{_configuration.AzureDevOps.Organization}/{_configuration.AzureDevOps.ProjectName}/_apis/git/repositories/{_configuration.AzureDevOps.RepositoryId}/pullRequests/{pullRequestNumber}/threads",
             Query = "api-version=7.0"
         };
@@ -200,10 +200,8 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
         {
             State = GetStatus(message.State),
             Description = GetStatusDescription(message.State),
-            TargetUrl = message.State is PullRequestStatusState.Succeeded
-                ? $"http://localhost:{message.Port}"
-                : message.BuildPipelineAddress,
-            Context = new()
+            TargetUrl = message.BuildPipelineAddress,
+            Context = new Context
             {
                 Genre = "preview-environments",
                 Name = "deployment-status"
@@ -214,12 +212,15 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
             .WithAuthorization(message.AccessToken)
             .WithBody(status);
 
-        HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 
         try
         {
             _ = response.EnsureSuccessStatusCode();
-            _logger.LogInformation("Successfully posed status.");
+            
+            _logger.LogInformation(
+                "Successfully posed status as '{pullRequestStatus}'.",
+                message.State);
         }
         catch (Exception ex)
         {

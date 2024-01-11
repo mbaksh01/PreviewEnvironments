@@ -12,11 +12,7 @@ using PreviewEnvironments.Application.Models;
 namespace PreviewEnvironments.Application.Services;
 
 /**
- * TODO: Add container lifetime. - Done
- * TODO: Clean up on PR close/abandon. - Done
- * TODO: Fix disposal on application shutdown. - Done
  * TODO: Look at adding memory caps to containers.
- * TODO: Move configuration to app settings.
  * TODO: Post message to say container has expired.
  */
 internal class DockerService : IDockerService
@@ -140,9 +136,9 @@ internal class DockerService : IDockerService
         CancellationToken cancellationToken = default
     )
     {
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Attempting to run container with the following parameters;" +
-            " Image: '{imageName}', Tag: '{imageTag}', Repository: '{repository}'," +
+            " Image: '{imageName}', Tag: '{imageTag}', Registry: '{registry}'," +
             " Exposed port: '{exposedPort}'.",
             imageName,
             imageTag,
@@ -225,7 +221,9 @@ internal class DockerService : IDockerService
                     ContainerId = response.ID,
                     ImageName = $"{registry}/{imageName}",
                     ImageTag = imageTag,
-                    PullRequestId = int.Parse(imageTag.AsSpan(imageTag.IndexOf('-') + 1))
+                    PullRequestId = int.Parse(imageTag.AsSpan(imageTag.IndexOf('-') + 1)),
+                    BuildDefinitionId = buildDefinitionId,
+                    Port = port
                 });
             }
 
@@ -248,9 +246,9 @@ internal class DockerService : IDockerService
         CancellationToken cancellationToken = default
     )
     {
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Restarting container with the following parameters;" +
-            " Image: '{imageName}', Tag: '{imageTag}', Repository: '{repository}'," +
+            " Image: '{imageName}', Tag: '{imageTag}', Registry: '{registry}'," +
             " Exposed port: '{exposedPort}'",
             imageName,
             imageTag,
@@ -271,7 +269,7 @@ internal class DockerService : IDockerService
 
         if (containerId is null)
         {
-            _logger.LogInformation("Could not find a container which matched the required condition.");
+            _logger.LogDebug("Could not find a container which matched the required condition.");
 
             return await RunContainerAsync(
                 imageName,
@@ -297,7 +295,7 @@ internal class DockerService : IDockerService
 
     public async Task ExpireContainersAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Attempting to find and stop expired containers.");
+        _logger.LogDebug("Attempting to find and stop expired containers.");
 
         DockerContainer[] containers;
 
@@ -367,7 +365,7 @@ internal class DockerService : IDockerService
 
     private async Task PullImageAsync(string image, string tag, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Attempting to pull an image. Image: '{image}', Tag: '{tag}'.",
             image,
             tag
@@ -394,28 +392,28 @@ internal class DockerService : IDockerService
     private async Task<CreateContainerResponse> CreateContainerAsync(
         string imageName,
         string imageTag,
-        string? repository,
+        string? registry,
         int exposedPort,
         int publicPort,
         string containerName,
         CancellationToken cancellationToken = default
     )
     {
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Attempting to create container. Image: '{image}', Tag: '{tag}'," +
-            " Repository: '{repository}', Exposed Port: '{exposedPort}'," +
+            " Registry: '{registry}', Exposed Port: '{exposedPort}'," +
             " Public Port: '{publicPort}', Name: '{containerName}'",
             imageName,
             imageTag,
-            repository,
+            registry,
             exposedPort,
             publicPort,
             containerName
         );
 
-        string fullImageName = string.IsNullOrWhiteSpace(repository)
+        string fullImageName = string.IsNullOrWhiteSpace(registry)
             ? $"{imageName}:{imageTag}"
-            : $"{repository}/{imageName}:{imageTag}";
+            : $"{registry}/{imageName}:{imageTag}";
 
         CreateContainerParameters parameters = new()
         {
@@ -448,7 +446,7 @@ internal class DockerService : IDockerService
         {
             try
             {
-                _logger.LogInformation("Create container attempt {attempt}.", attempt);
+                _logger.LogDebug("Create container attempt {attempt}.", attempt);
 
                 response = await _dockerClient
                     .Containers
@@ -456,18 +454,16 @@ internal class DockerService : IDockerService
 
                 break;
             }
-            // MAYBE: Maybe toggle this behaviour.
             catch (DockerApiException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
             {
-                _logger.LogWarning(
+                _logger.LogDebug(
                     ex,
                     "Could not start a container due to a conflict."
                 );
 
-                _logger.LogInformation("Attempting to stop and remove conflicting container.");
-
-                // TODO: Move to config.
-                if (attempt > 3)
+                _logger.LogDebug("Attempting to stop and remove conflicting container.");
+                
+                if (attempt > _configuration.Docker.CreateContainerRetryCount)
                 {
                     throw;
                 }
@@ -490,11 +486,11 @@ internal class DockerService : IDockerService
 
         _logger.LogInformation(
             "Created container. Image: '{image}', Tag: '{tag}'," +
-            " Repository: '{repository}', Exposed Port: '{exposedPort}'," +
+            " Registry: '{registry}', Exposed Port: '{exposedPort}'," +
             " Public Port: '{publicPort}', Name: '{containerName}'",
             imageName,
             imageTag,
-            repository,
+            registry,
             exposedPort,
             publicPort,
             containerName
@@ -531,7 +527,7 @@ internal class DockerService : IDockerService
 
     private async Task<bool> StopContainerAsync(string containerId, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Attempting to stop container. Container id {containerId}.",
             containerId
         );
@@ -618,7 +614,7 @@ internal class DockerService : IDockerService
     {
         string fullImageName = $"{imageName}:{imageTag}";
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Attempting to remove image. Image: {fullImageName}.",
             fullImageName
         );
@@ -640,10 +636,10 @@ internal class DockerService : IDockerService
 
     public async Task RemoveContainerAsync(string containerId, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation(
-                "Attempting to remove container and volumes. Container id: {containerId}",
-                containerId
-            );
+        _logger.LogDebug(
+            "Attempting to remove container and volumes. Container id: {containerId}",
+            containerId
+        );
 
         await _dockerClient.Containers.RemoveContainerAsync(
             containerId,
@@ -667,8 +663,8 @@ internal class DockerService : IDockerService
 
     private async Task CleanUpAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Performing global clean up.");
-        _logger.LogInformation("Attempting to remove all containers linked to this application.");
+        _logger.LogDebug("Performing global clean up.");
+        _logger.LogDebug("Attempting to remove all containers linked to this application.");
 
         ICollection<string> containerIds;
 

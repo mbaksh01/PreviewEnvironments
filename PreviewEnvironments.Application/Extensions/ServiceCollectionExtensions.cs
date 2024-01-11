@@ -11,9 +11,9 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
         _ = services
-            .AddScoped<IAzureDevOpsService, AzureDevOpsService>()
+            .AddSingleton<IAzureDevOpsService, AzureDevOpsService>()
             .AddSingleton<IDockerService, DockerService>()
-            .AddScoped<HttpClient>()
+            .AddSingleton<HttpClient>()
             .AddSingleton<ApplicationLifetimeService>();
         
         _ = services.Configure<ApplicationConfiguration>(options =>

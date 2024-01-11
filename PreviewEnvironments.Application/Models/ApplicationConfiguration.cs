@@ -18,6 +18,8 @@ public sealed class ApplicationConfiguration
 public sealed class DockerConfiguration
 {
     public int ContainerTimeoutSeconds { get; set; }
+    
+    public int CreateContainerRetryCount { get; set; }
 }
 
 public sealed class AzureDevOpsConfiguration

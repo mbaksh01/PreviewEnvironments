@@ -16,7 +16,7 @@ RUN dotnet build "PreviewEnvironments.API.csproj" --no-restore -c $BUILD_CONFIGU
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "PreviewEnvironments.API.csproj" --no-build -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "PreviewEnvironments.API.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
