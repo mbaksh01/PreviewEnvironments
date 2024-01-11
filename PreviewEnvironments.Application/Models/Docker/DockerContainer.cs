@@ -15,4 +15,8 @@ public sealed class DockerContainer
     public bool CanExpire { get; set; } = true;
 
     public int PullRequestId { get; set; }
+
+    public int Port { get; set; }
+
+    public int BuildDefinitionId { get; set; }
 }

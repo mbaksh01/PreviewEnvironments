@@ -11,7 +11,8 @@ public interface IDockerService : IAsyncDisposable
     Task<int> RunContainerAsync(
         string imageName,
         string imageTag,
-        string repository = "localhost:5002",
+        int buildDefinitionId,
+        string registry = "localhost:5002",
         int exposedPort = 80,
         CancellationToken cancellationToken = default
     );
@@ -19,7 +20,8 @@ public interface IDockerService : IAsyncDisposable
     Task<int> RestartContainerAsync(
         string imageName,
         string imageTag,
-        string repository = "localhost:5002",
+        int buildDefinitionId,
+        string registry = "localhost:5002",
         int exposedPort = 80,
         CancellationToken cancellationToken = default
     );

@@ -134,7 +134,8 @@ internal class DockerService : IDockerService, IAsyncDisposable
     public async Task<int> RunContainerAsync(
         string imageName,
         string imageTag,
-        string repository = "localhost:5002",
+        int buildDefinitionId,
+        string registry = "localhost:5002",
         int exposedPort = 80,
         CancellationToken cancellationToken = default
     )
@@ -145,18 +146,63 @@ internal class DockerService : IDockerService, IAsyncDisposable
             " Exposed port: '{exposedPort}'.",
             imageName,
             imageTag,
-            repository,
+            registry,
             exposedPort
         );
 
         imageName = imageName.ToLower();
 
-        int port = Random.Shared.Next(10_000, 60_000);
+        SupportedBuildDefinition? supportedBuildDefinition = _configuration
+            .AzureDevOps
+            .SupportedBuildDefinitions
+            .FirstOrDefault(sbd => sbd.BuildDefinitionId == buildDefinitionId);
+
+        if (supportedBuildDefinition is null)
+        {
+            _logger.LogError(
+                "No build definition with id '{buildDefinitionId}' was found.",
+                buildDefinitionId);
+            
+            return 0;
+        }
+
+        int port;
+        
+        if (supportedBuildDefinition.AllowedImagePorts.Length == 0)
+        {
+            port = Random.Shared.Next(10_000, 60_000);
+        }
+        else
+        {
+            int[] takenPorts;
+            
+            lock (_containers)
+            {
+                takenPorts = _containers
+                    .Values
+                    .Where(c => c.BuildDefinitionId == buildDefinitionId)
+                    .Select(c => c.Port)
+                    .ToArray();
+            }
+
+            port = supportedBuildDefinition
+                .AllowedImagePorts
+                .FirstOrDefault(p => takenPorts.Contains(p) == false);
+
+            if (port == default)
+            {
+                _logger.LogError(
+                    "There were no available ports to start this container. Consider increasing the number of allowed ports for build definition '{buildDefinitionId}'",
+                    buildDefinitionId);
+
+                return 0;
+            }
+        }
 
         string containerName = $"{imageName}-{imageTag.ToLower()}-preview";
 
         await PullImageAsync(
-            $"{repository}/{imageName}",
+            $"{registry}/{imageName}",
             imageTag,
             cancellationToken
         );
@@ -164,7 +210,7 @@ internal class DockerService : IDockerService, IAsyncDisposable
         CreateContainerResponse response = await CreateContainerAsync(
             imageName,
             imageTag,
-            repository,
+            registry,
             exposedPort,
             port,
             containerName,
@@ -180,7 +226,7 @@ internal class DockerService : IDockerService, IAsyncDisposable
                 _ = _containers.TryAdd(response.ID, new DockerContainer
                 {
                     ContainerId = response.ID,
-                    ImageName = $"{repository}/{imageName}",
+                    ImageName = $"{registry}/{imageName}",
                     ImageTag = imageTag,
                     PullRequestId = int.Parse(imageTag.AsSpan(imageTag.IndexOf('-') + 1))
                 });
@@ -199,7 +245,8 @@ internal class DockerService : IDockerService, IAsyncDisposable
     public async Task<int> RestartContainerAsync(
         string imageName,
         string imageTag,
-        string repository = "localhost:5002",
+        int buildDefinitionId,
+        string registry = "localhost:5002",
         int exposedPort = 80,
         CancellationToken cancellationToken = default
     )
@@ -210,7 +257,7 @@ internal class DockerService : IDockerService, IAsyncDisposable
             " Exposed port: '{exposedPort}'",
             imageName,
             imageTag,
-            repository,
+            registry,
             exposedPort
         );
 
@@ -220,7 +267,7 @@ internal class DockerService : IDockerService, IAsyncDisposable
         {
             containerId = _containers.SingleOrDefault(
                 dc =>
-                    dc.Value.ImageName == $"{repository}/{imageName.ToLower()}"
+                    dc.Value.ImageName == $"{registry}/{imageName.ToLower()}"
                     && dc.Value.ImageTag == imageTag
             ).Key;
         }
@@ -232,7 +279,8 @@ internal class DockerService : IDockerService, IAsyncDisposable
             return await RunContainerAsync(
                 imageName,
                 imageTag,
-                repository,
+                buildDefinitionId,
+                registry,
                 exposedPort,
                 cancellationToken
             );
@@ -240,9 +288,11 @@ internal class DockerService : IDockerService, IAsyncDisposable
 
         await CleanUpAsync(containerId, cancellationToken);
 
-        return await RunContainerAsync(imageName,
+        return await RunContainerAsync(
+            imageName,
             imageTag,
-            repository,
+            buildDefinitionId,
+            registry,
             exposedPort,
             cancellationToken
         );
@@ -267,7 +317,7 @@ internal class DockerService : IDockerService, IAsyncDisposable
                 .ToArray();
         }
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Found {containerCount} containers to expire.",
             containers.Length
         );

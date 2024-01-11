@@ -68,6 +68,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
             int port = await _dockerService.RestartContainerAsync(
                 supportedBuildDefinition.ImageName,
                 $"pr-{buildComplete.PrNumber}",
+                supportedBuildDefinition.BuildDefinitionId,
                 supportedBuildDefinition.DockerRegistry,
                 cancellationToken: cancellationToken
             );

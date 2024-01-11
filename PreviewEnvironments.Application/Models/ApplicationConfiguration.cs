@@ -41,4 +41,6 @@ public sealed class SupportedBuildDefinition
     public string ImageName { get; set; } = string.Empty;
 
     public string DockerRegistry { get; set; } = string.Empty;
+
+    public int[] AllowedImagePorts { get; set; } = Array.Empty<int>();
 }
