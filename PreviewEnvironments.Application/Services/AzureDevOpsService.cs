@@ -7,6 +7,7 @@ using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 using PreviewEnvironments.Application.Models.Docker;
 using PreviewEnvironments.Application.Services.Abstractions;
 using System.Diagnostics;
+using FluentValidation;
 using Microsoft.Extensions.Options;
 
 namespace PreviewEnvironments.Application.Services;
@@ -15,6 +16,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
 {
     private readonly ILogger<AzureDevOpsService> _logger;
     private readonly IDockerService _dockerService;
+    private readonly IValidator<ApplicationConfiguration> _validator;
     private readonly HttpClient _httpClient;
     private readonly ApplicationConfiguration _configuration;
 
@@ -22,12 +24,13 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
         ILogger<AzureDevOpsService> logger,
         IDockerService dockerService,
         HttpClient httpClient,
-        IOptions<ApplicationConfiguration> options
-    )
+        IOptions<ApplicationConfiguration> options,
+        IValidator<ApplicationConfiguration> validator)
     {
         _logger = logger;
         _dockerService = dockerService;
         _httpClient = httpClient;
+        _validator = validator;
         _configuration = options.Value;
 
         _dockerService.ContainerExpiredAsync += ContainerExpiredAsync;
@@ -36,7 +39,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
     /// <inheritdoc />
     public async Task BuildCompleteAsync(BuildComplete buildComplete, CancellationToken cancellationToken = default)
     {
-        if (!buildComplete.SourceBranch.StartsWith("refs/pull"))
+        if (buildComplete.SourceBranch.StartsWith("refs/pull") is false)
         {
             return;
         }
@@ -44,6 +47,11 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
         if (buildComplete.BuildStatus is not BuildStatus.Succeeded)
         {
             return;
+        }
+
+        if (_validator.Validate(_configuration).IsValid is false)
+        {
+            _logger.LogWarning("The application configuration was not deemed to be valid. Some parts of the application not may not work as expected.");
         }
 
         try
