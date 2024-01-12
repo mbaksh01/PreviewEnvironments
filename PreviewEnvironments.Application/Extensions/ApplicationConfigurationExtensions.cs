@@ -1,4 +1,5 @@
 ﻿using PreviewEnvironments.Application.Models;
+using PreviewEnvironments.Application.Models.AzureDevOps;
 
 namespace PreviewEnvironments.Application.Extensions;
 
@@ -24,5 +25,25 @@ public static class ApplicationConfigurationExtensions
             .FirstOrDefault(sbd =>
                 sbd.BuildDefinitionId == definitionId
                 && sbd.ProjectName == configuration.AzureDevOps.ProjectName);
+    }
+
+    internal static TMessage CreateAzureDevOpsMessage<TMessage>(
+        this ApplicationConfiguration configuration, string accessToken = "")
+        where TMessage : AzureDevOpsMessage
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            accessToken = configuration.AzureDevOps.AzAccessToken ?? string.Empty;
+        }
+        
+        return (TMessage)new AzureDevOpsMessage
+        {
+            Scheme = configuration.AzureDevOps.Scheme,
+            Host = configuration.AzureDevOps.Host,
+            Organization = configuration.AzureDevOps.Organization,
+            Project = configuration.AzureDevOps.ProjectName,
+            RepositoryId = configuration.AzureDevOps.RepositoryId,
+            AccessToken = accessToken,
+        };
     }
 }

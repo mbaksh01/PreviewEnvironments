@@ -69,23 +69,22 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
             // ASSUMPTION: Assuming that the tag is the pr number with 'pr-' prefixed.
             int port = await _dockerService.RestartContainerAsync(
                 supportedBuildDefinition.ImageName,
-                $"pr-{buildComplete.PrNumber}",
+                $"pr-{buildComplete.PullRequestNumber}",
                 supportedBuildDefinition.BuildDefinitionId,
                 supportedBuildDefinition.DockerRegistry,
                 cancellationToken: cancellationToken
             );
 
             string accessToken = GetAccessToken();
+
+            PreviewAvailableMessage message = _configuration
+                .CreateAzureDevOpsMessage<PreviewAvailableMessage>(accessToken);
+
+            message.PullRequestNumber = buildComplete.PullRequestNumber;
+            message.PreviewEnvironmentAddress =
+                $"{_configuration.Scheme}://{_configuration.Host}:{port}";
             
-            await PostPreviewAvailableMessage(new()
-            {
-                Organization = _configuration.AzureDevOps.Organization,
-                Project = _configuration.AzureDevOps.ProjectName,
-                RepositoryId = _configuration.AzureDevOps.RepositoryId,
-                AccessToken = accessToken,
-                PullRequestNumber = buildComplete.PrNumber,
-                PreviewEnvironmentAddress = $"{_configuration.Scheme}://{_configuration.Host}:{port}",
-            });
+            await PostPreviewAvailableMessage(message);
 
             await PostPullRequestStatus(
                 CreateStatusMessage(
@@ -345,27 +344,27 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
     /// parameters and the current configuration.
     /// </summary>
     /// <param name="buildComplete"></param>
-    /// <param name="state"></param>
-    /// <param name="port"></param>
-    /// <returns>A correctly initialised <see cref="PullRequestStatusMessage"/>.</returns>
+    /// <param name="state">State of the preview environment.</param>
+    /// <param name="port">Port the container was started on.</param>
+    /// <returns>
+    /// A correctly initialised <see cref="PullRequestStatusMessage"/>.
+    /// </returns>
     private PullRequestStatusMessage CreateStatusMessage(
         BuildComplete buildComplete,
         PullRequestStatusState state,
         int port = 0)
     {
         string accessToken = GetAccessToken();
-        
-        return new PullRequestStatusMessage
-        {
-            Organization = _configuration.AzureDevOps.Organization,
-            Project = _configuration.AzureDevOps.ProjectName,
-            RepositoryId = _configuration.AzureDevOps.RepositoryId,
-            AccessToken = accessToken,
-            PullRequestNumber = buildComplete.PrNumber,
-            BuildPipelineAddress = buildComplete.BuildUrl.ToString(),
-            State = state,
-            Port = port
-        };
+
+        PullRequestStatusMessage message = _configuration
+            .CreateAzureDevOpsMessage<PullRequestStatusMessage>(accessToken);
+
+        message.PullRequestNumber = buildComplete.PullRequestNumber;
+        message.BuildPipelineAddress = buildComplete.BuildUrl.ToString();
+        message.State = state;
+        message.Port = port;
+
+        return message;
     }
 
     /// <summary>

@@ -28,5 +28,5 @@ public sealed class BuildComplete
     /// <summary>
     /// The PR number associated with this build.
     /// </summary>
-    public required int PrNumber { get; set; }
+    public required int PullRequestNumber { get; set; }
 }
