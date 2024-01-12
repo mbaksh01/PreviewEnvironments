@@ -1,5 +1,9 @@
 ﻿namespace PreviewEnvironments.Application.Models.AzureDevOps;
 
+/// <summary>
+/// Base model containing information needed to make any call to the Azure
+/// DevOps REST API.
+/// </summary>
 internal class AzureDevOpsMessage
 {
     public string Host { get; set; } = "dev.azure.com";

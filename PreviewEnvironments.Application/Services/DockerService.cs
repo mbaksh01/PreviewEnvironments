@@ -36,6 +36,7 @@ internal class DockerService : IDockerService
         _progress.ProgressChanged += Progress_ProgressChanged;
     }
 
+    /// <inheritdoc />
     public async Task<bool> InitialiseAsync(CancellationToken cancellationToken = default)
     {
         if (_configuration.RunLocalRegistry == false)
@@ -127,6 +128,7 @@ internal class DockerService : IDockerService
         return started;
     }
 
+    /// <inheritdoc />
     public async Task<int> RunContainerAsync(
         string imageName,
         string imageTag,
@@ -237,6 +239,7 @@ internal class DockerService : IDockerService
         return started ? port : 0;
     }
 
+    /// <inheritdoc />
     public async Task<int> RestartContainerAsync(
         string imageName,
         string imageTag,
@@ -293,6 +296,7 @@ internal class DockerService : IDockerService
         );
     }
 
+    /// <inheritdoc />
     public async Task ExpireContainersAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Attempting to find and stop expired containers.");
@@ -331,6 +335,7 @@ internal class DockerService : IDockerService
         }
     }
 
+    /// <inheritdoc />
     public Task<bool> StopAndRemoveContainerAsync(int pullRequestId, CancellationToken cancellationToken = default)
     {
         string? containerId;
@@ -634,7 +639,7 @@ internal class DockerService : IDockerService
         );
     }
 
-    public async Task RemoveContainerAsync(string containerId, CancellationToken cancellationToken = default)
+    private async Task RemoveContainerAsync(string containerId, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug(
             "Attempting to remove container and volumes. Container id: {containerId}",

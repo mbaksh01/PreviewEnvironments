@@ -2,6 +2,10 @@
 
 namespace PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 
+/// <summary>
+/// Model used to create a thread on a pull request.
+/// Learn more here: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-threads?view=azure-devops-rest-7.1
+/// </summary>
 internal sealed class PullRequestThread
 {
     /// <summary>
@@ -37,32 +41,35 @@ internal sealed class PullRequestThread
     ///     <term>unknow</term>
     ///     <description>The thread status is unknown.</description>
     ///   </item>
-    ///   <item>
-    ///     <term>wontFix</term>
-    ///     <description>The thread status is resolved as won't fix.</description>
-    ///   </item>
+    ///  <item>
+    ///    <term>wontFix</term>
+    ///    <description>The thread status is resolved as won't fix.</description>
+    ///  </item>
     /// </list>
     /// </summary>
     [JsonPropertyName("status")]
     public required string Status { get; set; }
 }
 
+/// <summary>
+/// Model used to represent a single comment on a thread.
+/// </summary>
 internal sealed class Comment
 {
     /// <summary>
-    /// Parent id of comment.
+    /// The Id of the parent comment. This is used for replies.
     /// </summary>
     [JsonPropertyName("parentCommentId")]
     public int ParentCommentId { get; set; }
 
     /// <summary>
-    /// Message to display on pull request.
+    /// The comment content.
     /// </summary>
     [JsonPropertyName("content")]
     public required string Content { get; set; }
 
     /// <summary>
-    /// Type of comment. Supported types below:
+    /// The comment type at the time of creation. Supported types below:
     /// <list type="bullet">
     ///   <item>
     ///     <term>codeChange</term>

@@ -22,7 +22,6 @@ public static class AzureDevOpsContractMapper
             SourceBranch = contract.Resource.SourceBranch,
             BuildStatus = status,
             PrNumber = contract.Resource.TriggerInfo?.PrNumber ?? 0,
-            ProjectName = contract.Resource.Project?.Name ?? string.Empty,
             BuildUrl = contract.Resource.Links.Web.Href,
             BuildDefinitionId = contract.Resource.Definition.Id
         };

@@ -11,11 +11,13 @@ public sealed class ApplicationLifetimeService : IApplicationLifetimeService
         _dockerService = dockerService;
     }
 
+    /// <inheritdoc />
     public async Task InitialiseAsync(CancellationToken cancellationToken = default)
     {
         _ = await _dockerService.InitialiseAsync(cancellationToken);
     }
 
+    /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
         return _dockerService.DisposeAsync();

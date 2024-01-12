@@ -4,18 +4,22 @@ namespace PreviewEnvironments.Application.Extensions;
 
 internal static class DockerApiExceptionExtensions
 {
+    private const string Marker = "by container \\\"";
+    
+    /// <summary>
+    /// Get the container id from the
+    /// <see cref="DockerApiException.ResponseBody"/>.
+    /// </summary>
+    /// <param name="exception">Exception thrown by docker API.</param>
+    /// <returns>The id of the container linked to this exception.</returns>
     public static string GetContainerId(this DockerApiException exception)
     {
         ReadOnlySpan<char> response = exception.ResponseBody;
 
-        ReadOnlySpan<char> marker = "by container \\\"";
-
-        int start = response.IndexOf(marker) + marker.Length;
+        int start = response.IndexOf(Marker) + Marker.Length;
 
         ReadOnlySpan<char> containerId = response.Slice(start, 64);
 
         return containerId.ToString();
     }
-
-    //{"message":"Conflict. The container name \"/preview-images-registry\" is already in use by container \"0eac7cd01f0e8a703344a7f41f5a2fb726c06485bdf27eb6b5e31ea6aad9d55c\". You have to remove (or rename) that container to be able to reuse that name."}
 }
