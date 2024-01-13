@@ -7,135 +7,31 @@ using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 using PreviewEnvironments.Application.Models.Docker;
 using PreviewEnvironments.Application.Services.Abstractions;
 using System.Diagnostics;
-using FluentValidation;
 using Microsoft.Extensions.Options;
 
 namespace PreviewEnvironments.Application.Services;
 
-internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
+internal class AzureDevOpsService : IAzureDevOpsService
 {
     private readonly ILogger<AzureDevOpsService> _logger;
-    private readonly IDockerService _dockerService;
-    private readonly IValidator<ApplicationConfiguration> _validator;
     private readonly HttpClient _httpClient;
     private readonly ApplicationConfiguration _configuration;
 
     public AzureDevOpsService(
         ILogger<AzureDevOpsService> logger,
-        IDockerService dockerService,
-        HttpClient httpClient,
         IOptions<ApplicationConfiguration> options,
-        IValidator<ApplicationConfiguration> validator)
+        HttpClient httpClient)
     {
         _logger = logger;
-        _dockerService = dockerService;
         _httpClient = httpClient;
-        _validator = validator;
         _configuration = options.Value;
-
-        _dockerService.ContainerExpiredAsync += ContainerExpiredAsync;
-    }
-
-    /// <inheritdoc />
-    public async Task BuildCompleteAsync(BuildComplete buildComplete, CancellationToken cancellationToken = default)
-    {
-        if (buildComplete.SourceBranch.StartsWith("refs/pull") is false)
-        {
-            return;
-        }
-
-        if (buildComplete.BuildStatus is not BuildStatus.Succeeded)
-        {
-            return;
-        }
-
-        if (_validator.Validate(_configuration).IsValid is false)
-        {
-            _logger.LogWarning("The application configuration was not deemed to be valid. Some parts of the application not may not work as expected.");
-        }
-
-        try
-        {
-            await PostPullRequestStatus(
-                CreateStatusMessage(
-                    buildComplete,
-                    PullRequestStatusState.Pending
-                ),
-                cancellationToken
-            );
-            
-            SupportedBuildDefinition? supportedBuildDefinition = _configuration
-                .AzureDevOps
-                .SupportedBuildDefinitions
-                .FirstOrDefault(sbd => sbd.BuildDefinitionId == buildComplete.BuildDefinitionId);
-            
-            if (supportedBuildDefinition is null)
-            {
-                return;
-            }
-            
-            // ASSUMPTION: Assuming that the tag is the pr number with 'pr-' prefixed.
-            int port = await _dockerService.RestartContainerAsync(
-                supportedBuildDefinition.ImageName,
-                $"pr-{buildComplete.PullRequestNumber}",
-                supportedBuildDefinition.BuildDefinitionId,
-                supportedBuildDefinition.DockerRegistry,
-                cancellationToken: cancellationToken
-            );
-
-            string accessToken = GetAccessToken();
-
-            PreviewAvailableMessage message = _configuration
-                .CreateAzureDevOpsMessage<PreviewAvailableMessage>(accessToken);
-
-            message.PullRequestNumber = buildComplete.PullRequestNumber;
-            message.PreviewEnvironmentAddress =
-                $"{_configuration.Scheme}://{_configuration.Host}:{port}";
-            
-            await PostPreviewAvailableMessage(message);
-
-            await PostPullRequestStatus(
-                CreateStatusMessage(
-                    buildComplete,
-                    PullRequestStatusState.Succeeded,
-                    port
-                ),
-                cancellationToken
-            );
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "An error occurred when trying to run a container."
-            );
-
-            await PostPullRequestStatus(
-                CreateStatusMessage(
-                    buildComplete,
-                    PullRequestStatusState.Failed
-                ),
-                cancellationToken
-            );
-        }
     }
     
     /// <inheritdoc />
-    public ValueTask PullRequestUpdatedAsync(PullRequestUpdated pullRequestUpdated, CancellationToken cancellationToken = default)
+    public async Task PostPreviewAvailableMessageAsync(PreviewAvailableMessage message, CancellationToken cancellationToken = default)
     {
-        return pullRequestUpdated.State switch
-        {
-            PullRequestState.Completed or PullRequestState.Abandoned => PullRequestClosedAsync(pullRequestUpdated.Id, cancellationToken),
-            _ => ValueTask.CompletedTask
-        };
-    }
-    
-    /// <summary>
-    /// Posts the <see cref="PreviewAvailableMessage"/> to Azure DevOps.
-    /// </summary>
-    /// <param name="message"></param>
-    private async Task PostPreviewAvailableMessage(PreviewAvailableMessage message)
-    {
+        message.AccessToken = GetAccessToken();
+        
         UriBuilder builder = new()
         {
             Host = message.Host,
@@ -163,14 +59,11 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
             .WithAuthorization(accessToken)
             .WithBody(thread);
 
-        _ = await _httpClient.SendAsync(request);
+        _ = await _httpClient.SendAsync(request, cancellationToken);
     }
 
-    /// <summary>
-    /// Posts a message to the pull request stating a container has been stopped.
-    /// </summary>
-    /// <param name="pullRequestNumber">Pull request number to post to.</param>
-    private async Task PostExpiredContainerMessage(int pullRequestNumber)
+    /// <inheritdoc />
+    public async Task PostExpiredContainerMessageAsync(int pullRequestNumber, CancellationToken cancellationToken = default)
     {
         // https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-threads/create?tabs=HTTP
 
@@ -205,7 +98,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
             .WithAuthorization(accessToken)
             .WithBody(thread);
 
-        _ = await _httpClient.SendAsync(request);
+        _ = await _httpClient.SendAsync(request, cancellationToken);
     }
     
     /// <summary>
@@ -216,7 +109,7 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
     /// <param name="cancellationToken">
     /// Cancellation token used to stop this task.
     /// </param>
-    private async Task PostPullRequestStatus(PullRequestStatusMessage message, CancellationToken cancellationToken = default)
+    public async Task PostPullRequestStatusAsync(PullRequestStatusMessage message, CancellationToken cancellationToken = default)
     {
         // https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-statuses/create?tabs=HTTP
 
@@ -265,48 +158,6 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
     }
 
     /// <summary>
-    /// Event handler for <see cref="IDockerService.ContainerExpiredAsync"/>.
-    /// </summary>
-    /// <param name="container"></param>
-    private async Task ContainerExpiredAsync(DockerContainer container)
-    {
-        _logger.LogInformation("Container Expired event fired.");
-
-        await PostExpiredContainerMessage(container.PullRequestId);
-    }
-
-    /// <summary>
-    /// Stops the container linked to the provided
-    /// <paramref name="pullRequestId"/>.
-    /// </summary>
-    /// <param name="pullRequestId">Id of pull request that was closed.</param>
-    /// <param name="cancellationToken">
-    /// Cancellation token used to stop this task.
-    /// </param>
-    private async ValueTask PullRequestClosedAsync(int pullRequestId, CancellationToken cancellationToken = default)
-    {
-        bool response = await _dockerService.StopAndRemoveContainerAsync(
-            pullRequestId,
-            cancellationToken
-        );
-
-        if (response)
-        {
-            _logger.LogInformation(
-                "Successfully closed pull request {pullRequestId}.",
-                pullRequestId
-            );
-            
-            return;
-        }
-        
-        _logger.LogInformation(
-            "Failed to close pull request {pullRequestId}.",
-            pullRequestId
-        );
-    }
-
-    /// <summary>
     /// Converts a <see cref="PullRequestStatus"/> to its corresponding string
     /// value.
     /// </summary>
@@ -348,34 +199,6 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
     }
 
     /// <summary>
-    /// Creates a <see cref="PullRequestStatusMessage"/> from the given
-    /// parameters and the current configuration.
-    /// </summary>
-    /// <param name="buildComplete"></param>
-    /// <param name="state">State of the preview environment.</param>
-    /// <param name="port">Port the container was started on.</param>
-    /// <returns>
-    /// A correctly initialised <see cref="PullRequestStatusMessage"/>.
-    /// </returns>
-    private PullRequestStatusMessage CreateStatusMessage(
-        BuildComplete buildComplete,
-        PullRequestStatusState state,
-        int port = 0)
-    {
-        string accessToken = GetAccessToken();
-
-        PullRequestStatusMessage message = _configuration
-            .CreateAzureDevOpsMessage<PullRequestStatusMessage>(accessToken);
-
-        message.PullRequestNumber = buildComplete.PullRequestNumber;
-        message.BuildPipelineAddress = buildComplete.BuildUrl.ToString();
-        message.State = state;
-        message.Port = port;
-
-        return message;
-    }
-
-    /// <summary>
     /// Attempts to get the access token from the environment variables with the
     /// token provided in the configuration acting as a fallback.
     /// </summary>
@@ -401,11 +224,5 @@ internal class AzureDevOpsService : IAzureDevOpsService, IDisposable
         }
 
         return accessToken;
-    }
-
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        _dockerService.ContainerExpiredAsync -= ContainerExpiredAsync;
     }
 }

@@ -6,15 +6,16 @@
 /// </summary>
 internal sealed class PullRequestStatusMessage : AzureDevOpsMessage
 {
+    
     /// <summary>
     /// Pull request number. 
     /// </summary>
-    public required int PullRequestNumber { get; set; }
+    public int PullRequestNumber { get; set; }
     
     /// <summary>
     /// Link to build associated with this status.
     /// </summary>
-    public required string BuildPipelineAddress { get; set; }
+    public string BuildPipelineAddress { get; set; }
 
     /// <summary>
     /// Current state of this status.

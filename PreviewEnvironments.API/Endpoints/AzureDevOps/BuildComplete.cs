@@ -15,15 +15,16 @@ public static class BuildComplete
     {
         _ = app.MapPost(
             Constants.EndPoints.VSTFS.BuildComplete,
-            async (BuildCompleteContract contract,
-            IAzureDevOpsService azureDevOpsService,
-            IOptions<ApplicationConfiguration> options) =>
+            async (
+                BuildCompleteContract contract,
+                IPreviewEnvironmentManager previewEnvironmentManager,
+                IOptions<ApplicationConfiguration> options) =>
             {
                 options.Apply(contract);
 
-                await azureDevOpsService.BuildCompleteAsync(contract.ToModel());
+                await previewEnvironmentManager.BuildCompleteAsync(contract.ToModel());
 
-                return TypedResults.Ok(contract);
+                return Results.NoContent();
             })
             .WithName(Name)
             .WithOpenApi();

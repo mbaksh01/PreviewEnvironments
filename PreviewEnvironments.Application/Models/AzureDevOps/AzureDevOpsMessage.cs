@@ -6,6 +6,11 @@
 /// </summary>
 internal class AzureDevOpsMessage
 {
+    public AzureDevOpsMessage()
+    {
+        
+    }
+    
     /// <summary>
     /// Azure Devops host. Added to support Azure DevOps Server.
     /// </summary>
@@ -19,20 +24,20 @@ internal class AzureDevOpsMessage
     /// <summary>
     /// Name of organization.
     /// </summary>
-    public required string Organization { get; set; }
+    public string Organization { get; set; } = string.Empty;
 
     /// <summary>
     /// Name of project.
     /// </summary>
-    public required string Project { get; set; }
+    public string Project { get; set; } = string.Empty;
 
     /// <summary>
     /// Repository id.
     /// </summary>
-    public required Guid RepositoryId { get; set; }
+    public Guid RepositoryId { get; set; }
 
     /// <summary>
     /// Access token.
     /// </summary>
-    public required string AccessToken { get; set; }
+    public string AccessToken { get; set; } = string.Empty;
 }

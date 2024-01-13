@@ -6,12 +6,14 @@ namespace PreviewEnvironments.API.Hosting;
 
 public class ContainerCleanUpBackgroundService : BackgroundService
 {
-    private readonly IDockerService _dockerService;
+    private readonly IPreviewEnvironmentManager _previewEnvironmentManager;
     private readonly ApplicationConfiguration _configuration;
 
-    public ContainerCleanUpBackgroundService(IDockerService dockerService, IOptions<ApplicationConfiguration> options)
+    public ContainerCleanUpBackgroundService(
+        IPreviewEnvironmentManager previewEnvironmentManager,
+        IOptions<ApplicationConfiguration> options)
     {
-        _dockerService = dockerService;
+        _previewEnvironmentManager = previewEnvironmentManager;
         _configuration = options.Value;
     }
 
@@ -20,7 +22,7 @@ public class ContainerCleanUpBackgroundService : BackgroundService
         while (!stoppingToken.IsCancellationRequested)
         {
             await Task.Delay(TimeSpan.FromSeconds(_configuration.ContainerTimeoutIntervalSeconds), stoppingToken);
-            await _dockerService.ExpireContainersAsync(stoppingToken);
+            await _previewEnvironmentManager.ExpireContainersAsync(stoppingToken);
         }
     }
 }

@@ -29,14 +29,14 @@ public static class ApplicationConfigurationExtensions
 
     internal static TMessage CreateAzureDevOpsMessage<TMessage>(
         this ApplicationConfiguration configuration, string accessToken = "")
-        where TMessage : AzureDevOpsMessage
+        where TMessage : AzureDevOpsMessage, new()
     {
         if (string.IsNullOrWhiteSpace(accessToken))
         {
             accessToken = configuration.AzureDevOps.AzAccessToken ?? string.Empty;
         }
         
-        return (TMessage)new AzureDevOpsMessage
+        return new TMessage
         {
             Scheme = configuration.AzureDevOps.Scheme,
             Host = configuration.AzureDevOps.Host,

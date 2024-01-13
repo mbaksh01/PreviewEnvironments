@@ -1,30 +1,35 @@
-﻿using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
+﻿using PreviewEnvironments.Application.Models.AzureDevOps;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 
 namespace PreviewEnvironments.Application.Services.Abstractions;
 
-public interface IAzureDevOpsService
+internal interface IAzureDevOpsService
 {
     /// <summary>
-    /// Takes a complete build and starts its associated preview environment.
+    /// Posts the <see cref="PreviewAvailableMessage"/> to Azure DevOps.
     /// </summary>
-    /// <param name="buildComplete">Information about the complete build.</param>
+    /// <param name="message"></param>
     /// <param name="cancellationToken">
     /// Cancellation token used to stop this task.
     /// </param>
-    /// <returns></returns>
-    Task BuildCompleteAsync(BuildComplete buildComplete, CancellationToken cancellationToken = default);
+    Task PostPreviewAvailableMessageAsync(PreviewAvailableMessage message, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Takes information about a updated pull request and performs the required
-    /// action on its associated preview environment.
+    /// Posts a message to the pull request stating a container has been stopped.
     /// </summary>
-    /// <param name="pullRequestUpdated">
-    /// Information about the updated pull request.
-    /// </param>
+    /// <param name="pullRequestNumber">Pull request number to post to.</param>
     /// <param name="cancellationToken">
     /// Cancellation token used to stop this task.
     /// </param>
-    /// <returns></returns>
-    ValueTask PullRequestUpdatedAsync(PullRequestUpdated pullRequestUpdated, CancellationToken cancellationToken = default);
+    Task PostExpiredContainerMessageAsync(int pullRequestNumber, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Posts a pull request status to Azure DevOps using the
+    /// <paramref name="message"/>.
+    /// </summary>
+    /// <param name="message">Information about the status.</param>
+    /// <param name="cancellationToken">
+    /// Cancellation token used to stop this task.
+    /// </param>
+    Task PostPullRequestStatusAsync(PullRequestStatusMessage message, CancellationToken cancellationToken = default);
 }

@@ -1,14 +1,16 @@
-﻿using PreviewEnvironments.Application.Services;
+﻿using Docker.DotNet.Models;
+using PreviewEnvironments.Application.Services;
+using PreviewEnvironments.Application.Services.Abstractions;
 
 namespace PreviewEnvironments.API.Hosting;
 
 internal sealed class AppLifetimeService : IHostedLifecycleService
 {
-    private readonly ApplicationLifetimeService _applicationLifetimeService;
+    private readonly IPreviewEnvironmentManager _previewEnvironmentManager;
 
-    public AppLifetimeService(ApplicationLifetimeService applicationLifetimeService)
+    public AppLifetimeService(IPreviewEnvironmentManager previewEnvironmentManager)
     {
-        _applicationLifetimeService = applicationLifetimeService;
+        _previewEnvironmentManager = previewEnvironmentManager;
     }
 
     public Task StartingAsync(CancellationToken cancellationToken)
@@ -23,12 +25,12 @@ internal sealed class AppLifetimeService : IHostedLifecycleService
 
     public async Task StartedAsync(CancellationToken cancellationToken)
     {
-        await _applicationLifetimeService.InitialiseAsync(cancellationToken);
+        await _previewEnvironmentManager.InitialiseAsync(cancellationToken);
     }
 
-    public async Task StoppingAsync(CancellationToken cancellationToken)
+    public Task StoppingAsync(CancellationToken cancellationToken)
     {
-        await _applicationLifetimeService.DisposeAsync();
+        return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)

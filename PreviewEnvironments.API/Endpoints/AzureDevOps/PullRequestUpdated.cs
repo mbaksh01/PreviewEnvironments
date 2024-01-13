@@ -12,11 +12,13 @@ public static class PullRequestUpdated
     {
         _ = app.MapPost(
             Constants.EndPoints.VSTFS.PullRequestUpdated,
-            async (PullRequestUpdatedContract contract, IAzureDevOpsService azureDevOpsService) =>
+            async (
+                PullRequestUpdatedContract contract,
+                IPreviewEnvironmentManager previewEnvironmentManager) =>
             {
-                await azureDevOpsService.PullRequestUpdatedAsync(contract.ToModel());
+                await previewEnvironmentManager.PullRequestUpdatedAsync(contract.ToModel());
 
-                return TypedResults.Ok(contract);
+                return Results.NoContent();
             })
             .WithName(Name)
             .WithOpenApi();

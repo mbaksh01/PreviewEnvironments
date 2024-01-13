@@ -20,10 +20,10 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration)
     {
         _ = services
+            .AddSingleton<IPreviewEnvironmentManager, PreviewEnvironmentManager>()
             .AddSingleton<IAzureDevOpsService, AzureDevOpsService>()
             .AddSingleton<IDockerService, DockerService>()
             .AddSingleton<HttpClient>()
-            .AddSingleton<ApplicationLifetimeService>()
             .AddSingleton<IValidator<ApplicationConfiguration>, ApplicationConfigurationValidator>();
         
         _ = services.Configure<ApplicationConfiguration>(options =>
