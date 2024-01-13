@@ -1,18 +1,17 @@
-﻿using Docker.DotNet;
+﻿using System.Net;
+using Docker.DotNet;
 using Docker.DotNet.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using PreviewEnvironments.Application.Extensions;
+using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Models.Docker;
 using PreviewEnvironments.Application.Services.Abstractions;
-using System.Net;
-using Microsoft.Extensions.Options;
-using PreviewEnvironments.Application.Models;
 
 namespace PreviewEnvironments.Application.Services;
 
 /**
  * TODO: Look at adding memory caps to containers.
- * TODO: Post message to say container has expired.
  */
 internal class DockerService : IDockerService
 {
@@ -220,7 +219,7 @@ internal class DockerService : IDockerService
             exposedPort
         );
 
-        await CleanUpAsync(existingContainer.ContainerId, cancellationToken);
+        _ = await StopAndRemoveContainerAsync(existingContainer.ContainerId, cancellationToken);
 
         return await RunContainerAsync(
             imageName,
@@ -275,23 +274,6 @@ internal class DockerService : IDockerService
             "Attempting to stop container. Container id {containerId}.",
             containerId
         );
-
-        // DockerContainer? dockerContainer;
-        //
-        // lock (_containers)
-        // {
-        //     _ = _containers.TryGetValue(containerId, out dockerContainer);
-        // }
-        //
-        // if (dockerContainer?.Expired ?? false)
-        // {
-        //     _logger.LogInformation(
-        //         "Container already stopped. Container id: {containerId}",
-        //         containerId
-        //     );
-        //
-        //     return true;
-        // }
 
         IList<ContainerListResponse> containers = await _dockerClient
             .Containers
@@ -565,45 +547,6 @@ internal class DockerService : IDockerService
             "Removed container and volumes. Container id: {containerId}.",
             containerId
         );
-    }
-
-    private async Task CleanUpAsync(string containerId, CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation(
-            "Cleaning up container. Container id: {containerId}.",
-            containerId
-        );
-
-        // DockerContainer? dockerContainer;
-        //
-        // lock (_containers)
-        // {
-        //     _ = _containers.TryGetValue(containerId, out dockerContainer);
-        // }
-
-        bool removed = await StopAndRemoveContainerAsync(containerId, cancellationToken);
-
-        // if (removed && dockerContainer is not null)
-        // {
-        //     // TODO: Remove images from registry as well.
-        //     await RemoveImageAsync(
-        //         dockerContainer.ImageName,
-        //         dockerContainer.ImageTag,
-        //         cancellationToken
-        //     );
-        // }
-        // else
-        // {
-        //     _logger.LogInformation(
-        //         "Not attempting to remove image. Container not removed or" +
-        //         " container image was not found. Container id: {containerId}," +
-        //         " Container removed: {containerRemoved}, Container found:" +
-        //         " {containerFound}.",
-        //         containerId,
-        //         removed,
-        //         dockerContainer is not null
-        //     );
-        // }
     }
 
     /// <inheritdoc />

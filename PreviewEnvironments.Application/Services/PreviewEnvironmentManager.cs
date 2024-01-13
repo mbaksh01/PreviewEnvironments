@@ -72,13 +72,15 @@ internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
             .AzureDevOps
             .SupportedBuildDefinitions
             .FirstOrDefault(sbd => sbd.BuildDefinitionId == buildComplete.BuildDefinitionId);
-            
+
         if (supportedBuildDefinition is null)
         {
             // TODO: log error
             return;
         }
-        
+
+        // TODO: Validate Azure DevOps configuration and guard against invalid config.
+
         try
         {
             await _azureDevOpsService.PostPullRequestStatusAsync(
@@ -122,7 +124,7 @@ internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
             
             DockerContainer? existingContainer;
             DockerContainer? newContainer;
-            
+
             lock (_containers)
             {
                 // ASSUMPTION: Assuming that the tag is the pr number with 'pr-' prefixed.
@@ -132,7 +134,7 @@ internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
                         && dc.ImageTag == $"pr-{buildComplete.PullRequestNumber}"
                 );
             }
-            
+
             if (existingContainer is null)
             {
                 _logger.LogDebug(

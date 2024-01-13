@@ -1,13 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using PreviewEnvironments.Application.Extensions;
 using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Models.AzureDevOps;
-using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
-using PreviewEnvironments.Application.Models.Docker;
 using PreviewEnvironments.Application.Services.Abstractions;
-using System.Diagnostics;
-using Microsoft.Extensions.Options;
 
 namespace PreviewEnvironments.Application.Services;
 
