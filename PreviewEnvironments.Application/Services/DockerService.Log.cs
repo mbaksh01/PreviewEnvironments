@@ -28,8 +28,8 @@ internal sealed partial class DockerService
         [LoggerMessage(7, LogLevel.Debug, "Attempting to stop container. Container id: {ContainerId}.", EventName = nameof(AttemptingToStopContainer))]
         public static partial void AttemptingToStopContainer(ILogger logger, string containerId);
         
-        [LoggerMessage(8, LogLevel.Debug, "No container with id {ContainerId} found.", EventName = nameof(NoContainerFound))]
-        public static partial void NoContainerFound(ILogger logger, string containerId);
+        [LoggerMessage(8, LogLevel.Debug, "No container found. Container id: {ContainerId}.", EventName = nameof(ContainerNotFound))]
+        public static partial void ContainerNotFound(ILogger logger, string containerId);
         
         [LoggerMessage(9, LogLevel.Information, "Stopped container. Container id: {ContainerId}.", EventName = nameof(ContainerStopped))]
         public static partial void ContainerStopped(ILogger logger, string containerId);

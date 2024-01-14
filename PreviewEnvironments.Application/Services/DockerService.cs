@@ -38,30 +38,11 @@ internal sealed partial class DockerService : IDockerService
             return null;
         }
         
-        const string registryVersion = "latest";
+        ContainerListResponse? container = await _dockerClient
+            .GetContainerByName(Constants.Containers.PreviewImageRegistry);
 
-        await PullImageAsync("registry", registryVersion, cancellationToken);
-
-        Log.PulledDockerImage(_logger, "Docker Hub", "registry", registryVersion);
-        
-        IList<ContainerListResponse> containers = await _dockerClient
-            .Containers
-            .ListContainersAsync(
-                new ContainersListParameters
-                {
-                    All = true,
-                },
-                cancellationToken
-            );
-
-        if (containers.Any(c =>
-            c.Names.Contains($"/{Constants.Containers.PreviewImageRegistry}"))
-        )
+        if (container is not null)
         {
-            ContainerListResponse container = containers.Single(c =>
-                c.Names.Contains($"/{Constants.Containers.PreviewImageRegistry}")
-            );
-
             if (container.State == "exited")
             {
                 await RemoveContainerAsync(container.ID, cancellationToken);
@@ -71,6 +52,12 @@ internal sealed partial class DockerService : IDockerService
                 _ = await StopAndRemoveContainerAsync(container.ID, cancellationToken);
             }
         }
+        
+        const string registryVersion = "latest";
+        
+        await PullImageAsync("registry", registryVersion, cancellationToken);
+
+        Log.PulledDockerImage(_logger, "Docker Hub", "registry", registryVersion);
 
         const int registryPort = 5002;
 
@@ -210,6 +197,15 @@ internal sealed partial class DockerService : IDockerService
     {
         try
         {
+            ContainerListResponse? container = await _dockerClient
+                .GetContainerById(containerId);
+
+            if (container is null)
+            {
+                Log.ContainerNotFound(_logger, containerId);
+                return false;
+            }
+            
             bool stopped = await StopContainerAsync(containerId, cancellationToken);
 
             if (!stopped)
@@ -219,8 +215,7 @@ internal sealed partial class DockerService : IDockerService
             }
 
             await RemoveContainerAsync(containerId, cancellationToken);
-
-            // TODO: Remove image linked to container.
+            await RemoveImageAsync(container.Image, cancellationToken);
             
             return true;
         }
@@ -236,27 +231,16 @@ internal sealed partial class DockerService : IDockerService
     {
         Log.AttemptingToStopContainer(_logger, containerId);
 
-        IList<ContainerListResponse> containers = await _dockerClient
-            .Containers
-            .ListContainersAsync(new ContainersListParameters
-            {
-                All = true,
-                Filters = new Dictionary<string, IDictionary<string, bool>>
-                {
-                    ["id"] = new Dictionary<string, bool>
-                    {
-                        [containerId] = true,
-                    }
-                }
-            }, cancellationToken);
+        ContainerListResponse? container = await _dockerClient
+            .GetContainerById(containerId);
 
-        if (containers.Any() is false)
+        if (container is null)
         {
-            Log.NoContainerFound(_logger, containerId);
+            Log.ContainerNotFound(_logger, containerId);
             return false;
         }
         
-        if (containers.Single().State is not "running")
+        if (container.State is not "running")
         {
             Log.ContainerStopped(_logger, containerId);
             return true;
@@ -412,22 +396,22 @@ internal sealed partial class DockerService : IDockerService
         return started;
     }
     
-    private async Task RemoveImageAsync(string imageName, string imageTag, CancellationToken cancellationToken = default)
+    private async Task RemoveImageAsync(string image, CancellationToken cancellationToken = default)
     {
-        string fullImageName = $"{imageName}:{imageTag}";
-    
-        Log.AttemptingToRemoveImage(_logger, fullImageName);
+        Log.AttemptingToRemoveImage(_logger, image);
         
         _ = await _dockerClient.Images.DeleteImageAsync(
-            fullImageName,
+            image,
             new ImageDeleteParameters
             {
                 Force = true,
             },
             cancellationToken
         );
+        
+        // TODO: Remove image from source.
     
-        Log.ImageRemoved(_logger, fullImageName);
+        Log.ImageRemoved(_logger, image);
     }
 
     private async Task RemoveContainerAsync(string containerId, CancellationToken cancellationToken = default)
