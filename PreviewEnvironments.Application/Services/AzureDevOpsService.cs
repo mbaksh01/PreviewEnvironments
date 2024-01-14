@@ -9,7 +9,7 @@ using PreviewEnvironments.Application.Services.Abstractions;
 
 namespace PreviewEnvironments.Application.Services;
 
-internal class AzureDevOpsService : IAzureDevOpsService
+internal partial class AzureDevOpsService : IAzureDevOpsService
 {
     private readonly ILogger<AzureDevOpsService> _logger;
     private readonly HttpClient _httpClient;
@@ -75,6 +75,7 @@ internal class AzureDevOpsService : IAzureDevOpsService
 
         string accessToken = GetAccessToken();
 
+        // TODO: Move this to a runtime constant.
         PullRequestThread thread = new()
         {
             Comments =
@@ -96,6 +97,7 @@ internal class AzureDevOpsService : IAzureDevOpsService
             .WithAuthorization(accessToken)
             .WithBody(thread);
 
+        // TODO: Check response.
         _ = await _httpClient.SendAsync(request, cancellationToken);
     }
     
@@ -141,17 +143,16 @@ internal class AzureDevOpsService : IAzureDevOpsService
         {
             _ = response.EnsureSuccessStatusCode();
             
-            _logger.LogInformation(
-                "Successfully posed status as '{pullRequestStatus}'.",
-                message.State);
+            Log.PostedStatusSuccessfully(_logger, message.State);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to post status.");
-            _logger.LogError(
-                "Azure DevOps Api Response: {apiResponse}.",
-                await response.Content.ReadAsStringAsync(cancellationToken)
-            );
+            Log.PostedStatusFailed(_logger, ex);
+
+            string apiResponse =
+                await response.Content.ReadAsStringAsync(cancellationToken);
+            
+            Log.AzureDevOpsApiResponseError(_logger, apiResponse);
         }
     }
 
