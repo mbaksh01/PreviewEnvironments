@@ -92,12 +92,27 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
 
         string accessToken = GetAccessToken();
         
-        HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.ToString())
+        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.Uri)
             .WithAuthorization(accessToken)
             .WithBody(ExpiredContainerThread);
+        
+        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 
-        // TODO: Check response.
-        _ = await _httpClient.SendAsync(request, cancellationToken);
+        try
+        {
+            _ = response.EnsureSuccessStatusCode();
+            
+            Log.PostedExpiredContainerMessage(_logger, pullRequestNumber);
+        }
+        catch (Exception ex)
+        {
+            Log.PostedStatusFailed(_logger, ex);
+
+            string apiResponse =
+                await response.Content.ReadAsStringAsync(cancellationToken);
+            
+            Log.AzureDevOpsApiResponseError(_logger, apiResponse);
+        }
     }
     
     /// <summary>
@@ -110,8 +125,6 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
     /// </param>
     public async Task PostPullRequestStatusAsync(PullRequestStatusMessage message, CancellationToken cancellationToken = default)
     {
-        // https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-statuses/create?tabs=HTTP
-
         message.AccessToken = GetAccessToken();
         
         UriBuilder builder = new()
@@ -134,7 +147,7 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
             },
         };
 
-        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.ToString())
+        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.Uri)
             .WithAuthorization(message.AccessToken)
             .WithBody(status);
 

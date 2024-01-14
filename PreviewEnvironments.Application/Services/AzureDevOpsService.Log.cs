@@ -15,5 +15,8 @@ internal sealed partial class AzureDevOpsService
 
         [LoggerMessage(3, LogLevel.Error, "Azure DevOps Api Response: {ApiResponse}", EventName = nameof(AzureDevOpsApiResponseError))]
         public static partial void AzureDevOpsApiResponseError(ILogger logger, string apiResponse);
+        
+        [LoggerMessage(4, LogLevel.Information, "Successfully posted expired container thread.", EventName = nameof(PostedExpiredContainerMessage))]
+        public static partial void PostedExpiredContainerMessage(ILogger logger, int pullRequestId);
     }
 }
