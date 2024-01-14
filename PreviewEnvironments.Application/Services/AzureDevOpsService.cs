@@ -14,6 +14,23 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
     private readonly ILogger<AzureDevOpsService> _logger;
     private readonly HttpClient _httpClient;
     private readonly ApplicationConfiguration _configuration;
+    
+    private static readonly PullRequestThread ExpiredContainerThread = new()
+    {
+        Comments =
+        [
+            new Comment
+            {
+                CommentType = "system",
+                Content = """
+                  Preview environment has been stopped to save resources.
+                  To restart the container, re-queue the build.
+                  If your containers stop too early consider increasing the container timeout time.
+                  """,
+            },
+        ],
+        Status = "closed",
+    };
 
     public AzureDevOpsService(
         ILogger<AzureDevOpsService> logger,
@@ -74,28 +91,10 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
         };
 
         string accessToken = GetAccessToken();
-
-        // TODO: Move this to a runtime constant.
-        PullRequestThread thread = new()
-        {
-            Comments =
-            [
-                new Comment
-                {
-                    CommentType = "system",
-                    Content = """
-                        Preview environment has been stopped to save resources.
-                        To restart the container, re-queue the build.
-                        If your containers stop too early consider increasing the container timeout time.
-                        """,
-                },
-            ],
-            Status = "closed",
-        };
         
         HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.ToString())
             .WithAuthorization(accessToken)
-            .WithBody(thread);
+            .WithBody(ExpiredContainerThread);
 
         // TODO: Check response.
         _ = await _httpClient.SendAsync(request, cancellationToken);
@@ -113,6 +112,8 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
     {
         // https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-statuses/create?tabs=HTTP
 
+        message.AccessToken = GetAccessToken();
+        
         UriBuilder builder = new()
         {
             Host = message.Host,
