@@ -9,7 +9,7 @@ using PreviewEnvironments.Application.Services.Abstractions;
 
 namespace PreviewEnvironments.Application.Services;
 
-internal partial class AzureDevOpsService : IAzureDevOpsService
+internal sealed partial class AzureDevOpsService : IAzureDevOpsService
 {
     private readonly ILogger<AzureDevOpsService> _logger;
     private readonly HttpClient _httpClient;

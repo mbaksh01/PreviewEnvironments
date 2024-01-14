@@ -13,7 +13,7 @@ namespace PreviewEnvironments.Application.Services;
 /**
  * TODO: Look at adding memory caps to containers.
  */
-internal class DockerService : IDockerService
+internal sealed partial class DockerService : IDockerService
 {
     private readonly ILogger<DockerService> _logger;
     private readonly ApplicationConfiguration _configuration;
@@ -42,11 +42,8 @@ internal class DockerService : IDockerService
 
         await PullImageAsync("registry", registryVersion, cancellationToken);
 
-        _logger.LogInformation(
-            "Docker registry image cloned from docker hub. Version '{registryVersion}'.",
-            registryVersion
-        );
-
+        Log.PulledDockerImage(_logger, "Docker Hub", "registry", registryVersion);
+        
         IList<ContainerListResponse> containers = await _dockerClient
             .Containers
             .ListContainersAsync(
@@ -87,20 +84,7 @@ internal class DockerService : IDockerService
             cancellationToken
         );
 
-        _logger.LogInformation(
-            "Registry container created. Registry container id {registryContainerId}",
-            response.ID
-        );
-
         bool started = await StartContainerAsync(response.ID, cancellationToken);
-
-        DockerContainer registryContainer = new()
-        {
-            ContainerId = response.ID,
-            ImageName = "registry",
-            ImageTag = "latest",
-            CanExpire = false,
-        };
 
         if (started is false)
         {
@@ -111,11 +95,19 @@ internal class DockerService : IDockerService
         }
 
         _logger.LogInformation(
-            "Registry started on port {registryPortNumber}",
+            "Registry started on port {RegistryPortNumber}",
             registryPort
         );
             
         _logger.LogInformation("Docker service initialised.");
+        
+        DockerContainer registryContainer = new()
+        {
+            ContainerId = response.ID,
+            ImageName = "registry",
+            ImageTag = "latest",
+            CanExpire = false,
+        };
         
         return registryContainer;
     }
@@ -131,15 +123,7 @@ internal class DockerService : IDockerService
         CancellationToken cancellationToken = default
     )
     {
-        _logger.LogDebug(
-            "Attempting to run container with the following parameters;" +
-            " Image: '{imageName}', Tag: '{imageTag}', Registry: '{registry}'," +
-            " Exposed port: '{exposedPort}'.",
-            imageName,
-            imageTag,
-            registry,
-            exposedPort
-        );
+        Log.AttemptingToRunContainer(_logger, registry, imageName, imageTag, publicPort);
 
         imageName = imageName.ToLower();
 
@@ -147,10 +131,7 @@ internal class DockerService : IDockerService
 
         if (supportedBuildDefinition is null)
         {
-            _logger.LogError(
-                "No build definition with id '{buildDefinitionId}' was found.",
-                buildDefinitionId);
-            
+            Log.BuildDefinitionNotFound(_logger, buildDefinitionId);
             return null;
         }
 
@@ -209,15 +190,7 @@ internal class DockerService : IDockerService
             imageName = splitImageName[1];
         }
         
-        _logger.LogDebug(
-            "Restarting container with the following parameters;" +
-            " Image: '{imageName}', Tag: '{imageTag}', Registry: '{registry}'," +
-            " Exposed port: '{exposedPort}'",
-            imageName,
-            existingContainer.ImageTag,
-            registry,
-            exposedPort
-        );
+        Log.RestartingContainer(_logger, registry, imageName, existingContainer.ImageTag, existingContainer.Port);
 
         _ = await StopAndRemoveContainerAsync(existingContainer.ContainerId, cancellationToken);
 
@@ -241,28 +214,19 @@ internal class DockerService : IDockerService
 
             if (!stopped)
             {
-                _logger.LogInformation(
-                    "Container not stopped. Not attempting to remove container. Container id: {containerId}.",
-                    containerId
-                );
-
+                Log.ContainerNotStopped(_logger, containerId);
                 return false;
             }
 
             await RemoveContainerAsync(containerId, cancellationToken);
 
+            // TODO: Remove image linked to container.
+            
             return true;
         }
         catch (DockerApiException ex)
         {
-            _logger.LogError(
-                ex,
-                "An error occurred when trying to remove a container." +
-                " Container id: {containerId}, Exception Message: {message}",
-                containerId,
-                ex.Message
-            );
-
+            Log.ErrorRemovingContainer(_logger, ex, containerId);
             return false;
         }
     }
@@ -270,10 +234,7 @@ internal class DockerService : IDockerService
     /// <inheritdoc />
     public async Task<bool> StopContainerAsync(string containerId, CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug(
-            "Attempting to stop container. Container id {containerId}.",
-            containerId
-        );
+        Log.AttemptingToStopContainer(_logger, containerId);
 
         IList<ContainerListResponse> containers = await _dockerClient
             .Containers
@@ -291,15 +252,13 @@ internal class DockerService : IDockerService
 
         if (containers.Any() is false)
         {
-            _logger.LogDebug(
-                "No containers found mating the following criteria. -a -f \"id={containerId}\"",
-                containerId);
-            
+            Log.NoContainerFound(_logger, containerId);
             return false;
         }
         
         if (containers.Single().State is not "running")
         {
+            Log.ContainerStopped(_logger, containerId);
             return true;
         }
         
@@ -314,17 +273,11 @@ internal class DockerService : IDockerService
 
         if (stopped)
         {
-            _logger.LogInformation(
-                "Stopped container. Container id: {containerId}.",
-                containerId
-            );
+            Log.ContainerStopped(_logger, containerId);
         }
         else
         {
-            _logger.LogInformation(
-                "Failed to stop container. Container id: {containerId}.",
-                containerId
-            );
+            Log.ErrorStoppingContainer(_logger, containerId);
         }
 
         return stopped;
@@ -332,22 +285,12 @@ internal class DockerService : IDockerService
     
     private void Progress_ProgressChanged(object? sender, JSONMessage e)
     {
-        _logger.LogDebug(
-            "{timeNano} [{id}] Progress: {progress}, Error Message: {errorMessage}",
-            e.TimeNano,
-            e.ID,
-            e.Progress,
-            e.ErrorMessage
-        );
+        Log.DockerProgressChanged(_logger, e.TimeNano, e.ID, e.Progress, e.ErrorMessage);
     }
 
     private async Task PullImageAsync(string image, string tag, CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug(
-            "Attempting to pull an image. Image: '{image}', Tag: '{tag}'.",
-            image,
-            tag
-        );
+        Log.AttemptingToPullDockerImage(_logger, string.Empty, image, tag);
 
         await _dockerClient.Images.CreateImageAsync(
             new ImagesCreateParameters
@@ -360,11 +303,7 @@ internal class DockerService : IDockerService
             cancellationToken
         );
 
-        _logger.LogInformation(
-            "Pulled image '{image}' with tag '{tag}'.",
-            image,
-            tag
-        );
+        Log.PulledDockerImage(_logger, string.Empty, image, tag);
     }
 
     private async Task<CreateContainerResponse> CreateContainerAsync(
@@ -377,18 +316,8 @@ internal class DockerService : IDockerService
         CancellationToken cancellationToken = default
     )
     {
-        _logger.LogDebug(
-            "Attempting to create container. Image: '{image}', Tag: '{tag}'," +
-            " Registry: '{registry}', Exposed Port: '{exposedPort}'," +
-            " Public Port: '{publicPort}', Name: '{containerName}'",
-            imageName,
-            imageTag,
-            registry,
-            exposedPort,
-            publicPort,
-            containerName
-        );
-
+        Log.AttemptingToCreateContainer(_logger, registry, imageName, imageTag, publicPort, containerName);
+        
         string fullImageName = string.IsNullOrWhiteSpace(registry)
             ? $"{imageName}:{imageTag}"
             : $"{registry}/{imageName}:{imageTag}";
@@ -424,8 +353,8 @@ internal class DockerService : IDockerService
         {
             try
             {
-                _logger.LogDebug("Create container attempt {attempt}.", attempt);
-
+                Log.CreateContainerAttempt(_logger, attempt);
+                
                 response = await _dockerClient
                     .Containers
                     .CreateContainerAsync(parameters, cancellationToken);
@@ -434,16 +363,12 @@ internal class DockerService : IDockerService
             }
             catch (DockerApiException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
             {
-                _logger.LogDebug(
-                    ex,
-                    "Could not start a container due to a conflict."
-                );
-
-                _logger.LogDebug("Attempting to stop and remove conflicting container.");
+                Log.ErrorCreatingContainerConflict(_logger, ex);
+                Log.AttemptingToStopAndRemoveConflictContainer(_logger);
                 
                 if (attempt > _configuration.Docker.CreateContainerRetryCount)
                 {
-                    throw;
+                    throw new Exception("Maximum number of attempts reached.", ex);
                 }
 
                 string containerId = ex.GetContainerId();
@@ -462,17 +387,7 @@ internal class DockerService : IDockerService
             }
         }
 
-        _logger.LogInformation(
-            "Created container. Image: '{image}', Tag: '{tag}'," +
-            " Registry: '{registry}', Exposed Port: '{exposedPort}'," +
-            " Public Port: '{publicPort}', Name: '{containerName}'",
-            imageName,
-            imageTag,
-            registry,
-            exposedPort,
-            publicPort,
-            containerName
-        );
+        Log.CreatedContainer(_logger, registry, imageName, imageTag, publicPort, containerName);
 
         return response;
     }
@@ -487,17 +402,11 @@ internal class DockerService : IDockerService
 
         if (started)
         {
-            _logger.LogInformation(
-                "Container started. Container id: {containerId}",
-                containerId
-            );
+            Log.ContainerStarted(_logger, containerId);
         }
         else
         {
-            _logger.LogInformation(
-                "Container not started. Container id: {containerId}",
-                containerId
-            );
+            Log.ContainerNotStarted(_logger, containerId);
         }
 
         return started;
@@ -507,11 +416,8 @@ internal class DockerService : IDockerService
     {
         string fullImageName = $"{imageName}:{imageTag}";
     
-        _logger.LogDebug(
-            "Attempting to remove image. Image: {fullImageName}.",
-            fullImageName
-        );
-    
+        Log.AttemptingToRemoveImage(_logger, fullImageName);
+        
         _ = await _dockerClient.Images.DeleteImageAsync(
             fullImageName,
             new ImageDeleteParameters
@@ -521,18 +427,12 @@ internal class DockerService : IDockerService
             cancellationToken
         );
     
-        _logger.LogInformation(
-            "Successfully removed image. Image: {fullImageName}.",
-            fullImageName
-        );
+        Log.ImageRemoved(_logger, fullImageName);
     }
 
     private async Task RemoveContainerAsync(string containerId, CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug(
-            "Attempting to remove container and volumes. Container id: {containerId}",
-            containerId
-        );
+        Log.AttemptingToRemoveContainer(_logger, containerId);
 
         await _dockerClient.Containers.RemoveContainerAsync(
             containerId,
@@ -543,10 +443,7 @@ internal class DockerService : IDockerService
             cancellationToken
         );
 
-        _logger.LogInformation(
-            "Removed container and volumes. Container id: {containerId}.",
-            containerId
-        );
+        Log.RemovedContainer(_logger, containerId);
     }
 
     /// <inheritdoc />

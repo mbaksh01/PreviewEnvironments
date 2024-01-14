@@ -11,11 +11,11 @@ internal sealed class PullRequestStatusMessage : AzureDevOpsMessage
     /// Pull request number. 
     /// </summary>
     public int PullRequestNumber { get; set; }
-    
+
     /// <summary>
     /// Link to build associated with this status.
     /// </summary>
-    public string BuildPipelineAddress { get; set; }
+    public string BuildPipelineAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// Current state of this status.

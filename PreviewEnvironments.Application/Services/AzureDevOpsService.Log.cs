@@ -3,9 +3,9 @@ using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 
 namespace PreviewEnvironments.Application.Services;
 
-internal partial class AzureDevOpsService
+internal sealed partial class AzureDevOpsService
 {
-    private partial class Log
+    private static partial class Log
     {
         [LoggerMessage(1, LogLevel.Information, "Successfully posted status as '{PullRequestStatus}'.", EventName = nameof(PostedStatusSuccessfully))]
         public static partial void PostedStatusSuccessfully(ILogger logger, PullRequestStatusState pullRequestStatus);

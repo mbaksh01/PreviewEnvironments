@@ -12,7 +12,7 @@ using PreviewEnvironments.Application.Services.Abstractions;
 
 namespace PreviewEnvironments.Application.Services;
 
-internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
+internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentManager
 {
     private readonly ILogger<PreviewEnvironmentManager> _logger;
     private readonly IValidator<ApplicationConfiguration> _validator;
@@ -55,17 +55,19 @@ internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
     {
         if (buildComplete.SourceBranch.StartsWith("refs/pull") is false)
         {
+            Log.InvalidSourceBranch(_logger, buildComplete.SourceBranch);
             return;
         }
 
         if (buildComplete.BuildStatus is not BuildStatus.Succeeded)
         {
+            Log.InvalidBuildStatus(_logger, buildComplete.BuildStatus);
             return;
         }
 
         if (_validator.Validate(_configuration).IsValid is false)
         {
-            _logger.LogWarning("The application configuration was not deemed to be valid. Some parts of the application not may not work as expected.");
+            Log.InvalidApplicationConfiguration(_logger);
         }
 
         SupportedBuildDefinition? supportedBuildDefinition = _configuration
@@ -75,7 +77,7 @@ internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
 
         if (supportedBuildDefinition is null)
         {
-            // TODO: log error
+            Log.BuildDefinitionNotFound(_logger, buildComplete.BuildDefinitionId);
             return;
         }
 
@@ -114,10 +116,7 @@ internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
             
                 if (port == default)
                 {
-                    _logger.LogError(
-                        "There were no available ports to start this container. Consider increasing the number of allowed ports for build definition '{buildDefinitionId}'",
-                        supportedBuildDefinition.BuildDefinitionId);
-            
+                    Log.NoAvailablePorts(_logger, supportedBuildDefinition.BuildDefinitionId);
                     return;
                 }
             }
@@ -137,9 +136,7 @@ internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
 
             if (existingContainer is null)
             {
-                _logger.LogDebug(
-                    "Could not find a container linked to the pull request '{pullRequestNumber}'.",
-                    buildComplete.PullRequestNumber);
+                Log.NoContainerLinkedToPr(_logger, buildComplete.PullRequestNumber);
                 
                 newContainer = await _dockerService.RunContainerAsync(
                     supportedBuildDefinition.ImageName,
@@ -152,9 +149,7 @@ internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
             }
             else
             {
-                _logger.LogDebug(
-                    "Found a container linked to pull request '{pullRequestNumber}'",
-                    buildComplete.PullRequestNumber);
+                Log.ContainerLinkedToPr(_logger, buildComplete.PullRequestNumber);
                 
                 newContainer = await _dockerService.RestartContainerAsync(
                     existingContainer,
@@ -194,10 +189,7 @@ internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "An error occurred whilst processing a build complete message."
-            );
+            Log.ErrorProcessingBuildCompleteMessage(_logger, ex);
 
             await _azureDevOpsService.PostPullRequestStatusAsync(
                 CreateStatusMessage(
@@ -225,6 +217,7 @@ internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
     {
         if (pullRequestUpdated.State is PullRequestState.Active)
         {
+            Log.InvalidPullRequestState(_logger, pullRequestUpdated.State);
             return;
         }
         
@@ -239,7 +232,7 @@ internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
 
         if (string.IsNullOrWhiteSpace(containerId))
         {
-            // TODO: log error
+            Log.NoContainerLinkedToPr(_logger, pullRequestId);
             return;
         }
         
@@ -248,31 +241,24 @@ internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
             cancellationToken
         );
 
-        if (response)
+        if (response is false)
         {
-            lock (_containers)
-            {
-                _containers.Remove(containerId, out _);
-            }
-            
-            _logger.LogInformation(
-                "Successfully closed preview environment linked to pull request {pullRequestId}.",
-                pullRequestId
-            );
-            
+            Log.ErrorClosingPreviewEnvironment(_logger, pullRequestId);
             return;
         }
-        
-        _logger.LogInformation(
-            "Failed to close preview environment linked to pull request {pullRequestId}.",
-            pullRequestId
-        );
+
+        lock (_containers)
+        {
+            _containers.Remove(containerId, out _);
+        }
+
+        Log.PreviewEnvironmentClosed(_logger, pullRequestId);
     }
     
     /// <inheritdoc />
     public async Task ExpireContainersAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("Attempting to find and stop expired containers.");
+        Log.FindingAndStoppingContainers(_logger);
     
         DockerContainer[] containers;
     
@@ -289,10 +275,7 @@ internal sealed class PreviewEnvironmentManager : IPreviewEnvironmentManager
                 .ToArray();
         }
     
-        _logger.LogDebug(
-            "Found {containerCount} containers to expire.",
-            containers.Length
-        );
+        Log.FoundContainersToExpire(_logger, containers.Length);
     
         foreach (DockerContainer container in containers)
         {
