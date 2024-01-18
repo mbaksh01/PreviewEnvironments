@@ -28,6 +28,18 @@ internal sealed partial class DockerService : IDockerService
         _progress = new Progress<JSONMessage>();
 
         _progress.ProgressChanged += Progress_ProgressChanged;
+        
+        var os = Environment.OSVersion;
+        
+        if (os.Platform == PlatformID.Unix) {
+            _dockerClient = new DockerClientConfiguration (
+                    new Uri ("unix:///var/run/docker.sock"))
+                .CreateClient ();
+        } else if (os.Platform == PlatformID.Win32NT) {
+            _dockerClient = new DockerClientConfiguration (
+                    new Uri ("npipe://./pipe/docker_engine"))
+                .CreateClient ();
+        }
     }
 
     /// <inheritdoc />
@@ -147,7 +159,7 @@ internal sealed partial class DockerService : IDockerService
             ContainerId = response.ID,
             ImageName = $"{registry}/{imageName}",
             ImageTag = imageTag,
-            PullRequestId = int.Parse(imageTag.AsSpan(imageTag.IndexOf('-') + 1)),
+            PullRequestId = 1, //int.Parse(imageTag.AsSpan(imageTag.IndexOf('-') + 1)),
             BuildDefinitionId = buildDefinitionId,
             Port = publicPort
         };
