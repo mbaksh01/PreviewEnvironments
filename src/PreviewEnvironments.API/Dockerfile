@@ -11,7 +11,7 @@ COPY ["PreviewEnvironments.Application/PreviewEnvironments.Application.csproj", 
 RUN dotnet restore "PreviewEnvironments.API/PreviewEnvironments.API.csproj"
 COPY . .
 WORKDIR "/src/PreviewEnvironments.API"
-RUN dotnet build "PreviewEnvironments.API.csproj" --no-restore -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "PreviewEnvironments.API.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
