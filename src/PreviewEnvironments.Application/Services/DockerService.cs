@@ -159,7 +159,7 @@ internal sealed partial class DockerService : IDockerService
             ContainerId = response.ID,
             ImageName = $"{registry}/{imageName}",
             ImageTag = imageTag,
-            PullRequestId = 1, //int.Parse(imageTag.AsSpan(imageTag.IndexOf('-') + 1)),
+            PullRequestId = int.Parse(imageTag.AsSpan(imageTag.IndexOf('-') + 1)),
             BuildDefinitionId = buildDefinitionId,
             Port = publicPort
         };
