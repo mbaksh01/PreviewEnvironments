@@ -45,7 +45,7 @@ A build pipeline which pushes your application's Docker image needs to be config
      displayName: Remove Image From Agent
    ```
    **⚠️ Note:** If your using this task then its recommended to use variables to
-   reduce the reception of the docker image name and docker image tag.
+   reduce the repetition of the docker image name and docker image tag.
 
 6. Run your pipeline and ensure that the image is pushed, named and tagged correctly.
 
