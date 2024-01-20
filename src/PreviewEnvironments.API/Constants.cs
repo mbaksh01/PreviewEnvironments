@@ -10,5 +10,10 @@ public static class Constants
 
             public const string PullRequestUpdated = "/vstfs/pullRequestUpdated";
         }
+        
+        public static class Meta
+        {
+            public const string Root = "/";
+        }
     }
 }
