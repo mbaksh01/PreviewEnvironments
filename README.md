@@ -1,3 +1,7 @@
+# Setup
+
+Learn how to setup a Azure DevOps Project with Preview Environments [here](./docs/Setup.md).
+
 # Data Flow
 
 1. Create a PR
@@ -38,10 +42,3 @@ the PR, like `/preview-env restart` to restart an env.
 - Run registry locally
 
 Once the top has been complete, the pipeline can be ran.
-
-## Pipeline Setup
-
-1. Service connection to docker registry. No credentials required so i just used
-'1' and '1' for the id and password.
-2. YAML pipeline containing a build and push docker step to build the image and
-push to locally running docker image.
