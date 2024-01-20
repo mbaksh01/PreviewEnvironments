@@ -22,7 +22,7 @@ docker run `
     --rm `
     -v "/var/run/docker.sock:/var/run/docker.sock" `
     -e ASPNETCORE_ENVIRONMENT=Development `
-    --privileged=true `~~~~
+    --privileged=true `
     --name previewenvironments.api `
     previewenvironments.api
 ```
