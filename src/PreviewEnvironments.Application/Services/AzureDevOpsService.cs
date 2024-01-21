@@ -55,26 +55,40 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
             Query = "api-version=7.0"
         };
 
-        string accessToken = GetAccessToken();
-
         PullRequestThread thread = new()
         {
-            Comments = new Comment[]
-            {
-                new()
+            Comments =
+            [
+                new Comment
                 {
                     CommentType = "system",
                     Content = $"Preview environment available at [{message.PreviewEnvironmentAddress}]({message.PreviewEnvironmentAddress}).",
-                },
-            },
+                }
+            ],
             Status = "closed",
         };
 
-        HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.ToString())
-            .WithBasicAuthorization(accessToken)
+        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.ToString())
+            .WithBasicAuthorization(message.AccessToken)
             .WithJsonBody(thread);
 
-        _ = await _httpClient.SendAsync(request, cancellationToken);
+        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+
+        try
+        {
+            _ = response.EnsureSuccessStatusCode();
+
+            Log.PostedPreviewAvailableMessage(_logger, message.PullRequestNumber);
+        }
+        catch (Exception ex)
+        {
+            Log.PostedPreviewAvailableFailed(_logger, ex, message.PullRequestNumber);
+            
+            string apiResponse =
+                await response.Content.ReadAsStringAsync(cancellationToken);
+            
+            Log.AzureDevOpsApiResponseError(_logger, apiResponse);
+        }
     }
 
     /// <inheritdoc />
