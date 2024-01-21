@@ -473,6 +473,232 @@ public class PreviewEnvironmentManagerTests
         }
     }
 
+    [Fact]
+    public async Task PullRequestUpdated_Should_Return_Early_When_Pull_Request_State_Is_Invalid()
+    {
+        // Arrange
+        PullRequestUpdated pullRequestUpdated = new()
+        {
+            State = PullRequestState.Active
+        };
+
+        // Act
+        await _sut.PullRequestUpdatedAsync(pullRequestUpdated);
+
+        // Assert
+        await _dockerService
+            .Received(0)
+            .StopAndRemoveContainerAsync(Arg.Any<string>());
+    }
+    
+    [Fact]
+    public async Task PullRequestUpdated_Should_Return_Early_When_Container_Id_Is_Not_Found()
+    {
+        // Arrange
+        PullRequestUpdated pullRequestUpdated = new()
+        {
+            State = PullRequestState.Completed
+        };
+
+        // Act
+        await _sut.PullRequestUpdatedAsync(pullRequestUpdated);
+
+        // Assert
+        await _dockerService
+            .Received(0)
+            .StopAndRemoveContainerAsync(Arg.Any<string>());
+    }
+    
+    [Fact]
+    public async Task PullRequestUpdated_Should_Stop_And_Remove_The_Container()
+    {
+        // Arrange
+        const string containerId = "containerId";
+        
+        BuildComplete buildComplete = GetValidBuildComplete();
+        
+        PullRequestUpdated pullRequestUpdated = new()
+        {
+            Id = buildComplete.PullRequestNumber,
+            State = PullRequestState.Completed
+        };
+
+        _validator
+            .Validate(Arg.Any<ApplicationConfiguration>())
+            .Returns(new ValidationResult());
+
+        _options.Value.AzureDevOps.SupportedBuildDefinitions =
+        [
+            new SupportedBuildDefinition
+            {
+                BuildDefinitionId = buildComplete.BuildDefinitionId
+            }
+        ];
+        
+        _dockerService
+            .RunContainerAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                buildComplete.BuildDefinitionId,
+                Arg.Any<int>(),
+                Arg.Any<string>(),
+                Arg.Any<int>())
+            .Returns(x => new DockerContainer
+            {
+                ContainerId = containerId,
+                ImageName = $"{x.ArgAt<string>(4)}/{x.ArgAt<string>(0)}",
+                ImageTag = x.ArgAt<string>(1),
+                PullRequestId = buildComplete.PullRequestNumber
+            });
+        
+        await _sut.BuildCompleteAsync(buildComplete);
+        
+        // Act
+        await _sut.PullRequestUpdatedAsync(pullRequestUpdated);
+
+        // Assert
+        await _dockerService
+            .Received(1)
+            .StopAndRemoveContainerAsync(containerId);
+    }
+
+    [Fact]
+    public async Task ExpireContainersAsync_Should_Stop_All_Expired_Containers()
+    {
+        // Arrange
+        string[] containerIds =
+        [
+            "containerId1",
+            "containerId2",
+            "containerId3",
+            "containerId4",
+            "containerId5",
+        ];
+        
+        const int expiredContainerCount = 5;
+
+        int currentIndex = 0;
+        
+        BuildComplete buildComplete = GetValidBuildComplete();
+
+        _validator
+            .Validate(Arg.Any<ApplicationConfiguration>())
+            .Returns(new ValidationResult());
+
+        _options.Value.AzureDevOps.SupportedBuildDefinitions =
+        [
+            new SupportedBuildDefinition
+            {
+                BuildDefinitionId = buildComplete.BuildDefinitionId
+            }
+        ];
+        
+        _dockerService
+            .RunContainerAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                buildComplete.BuildDefinitionId,
+                Arg.Any<int>(),
+                Arg.Any<string>(),
+                Arg.Any<int>())
+            .Returns(x => new DockerContainer
+            {
+                ContainerId = containerIds[currentIndex],
+                ImageName = ((char)Random.Shared.Next(65, 91)).ToString(),
+                ImageTag = ((char)Random.Shared.Next(65, 91)).ToString(),
+                PullRequestId = buildComplete.PullRequestNumber,
+                CreatedTime = DateTime.Now.AddMinutes(-1)
+            });
+
+        _options.Value.Docker.ContainerTimeoutSeconds = 30;
+
+        for (int i = 0; i < expiredContainerCount; i++)
+        {
+            currentIndex = i;
+            await _sut.BuildCompleteAsync(buildComplete);
+        }
+
+        // Act
+        await _sut.ExpireContainersAsync();
+
+        // Assert
+        await _dockerService
+            .Received(expiredContainerCount)
+            .StopContainerAsync(Arg.Is<string>(s => containerIds.Contains(s)));
+
+        await _azureDevOpsService
+            .Received(expiredContainerCount)
+            .PostExpiredContainerMessageAsync(buildComplete.PullRequestNumber);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_Should_Stop_And_Remove_All_Containers()
+    {
+        // Arrange
+        string[] containerIds =
+        [
+            "containerId1",
+            "containerId2",
+            "containerId3",
+            "containerId4",
+            "containerId5",
+        ];
+        
+        const int containerCount = 5;
+
+        int currentIndex = 0;
+        
+        BuildComplete buildComplete = GetValidBuildComplete();
+
+        _validator
+            .Validate(Arg.Any<ApplicationConfiguration>())
+            .Returns(new ValidationResult());
+
+        _options.Value.AzureDevOps.SupportedBuildDefinitions =
+        [
+            new SupportedBuildDefinition
+            {
+                BuildDefinitionId = buildComplete.BuildDefinitionId
+            }
+        ];
+        
+        _dockerService
+            .RunContainerAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                buildComplete.BuildDefinitionId,
+                Arg.Any<int>(),
+                Arg.Any<string>(),
+                Arg.Any<int>())
+            .Returns(x => new DockerContainer
+            {
+                ContainerId = containerIds[currentIndex],
+                ImageName = ((char)Random.Shared.Next(65, 91)).ToString(),
+                ImageTag = ((char)Random.Shared.Next(65, 91)).ToString(),
+                PullRequestId = buildComplete.PullRequestNumber
+            });
+
+        _options.Value.Docker.ContainerTimeoutSeconds = 30;
+
+        for (int i = 0; i < containerCount; i++)
+        {
+            currentIndex = i;
+            await _sut.BuildCompleteAsync(buildComplete);
+        }
+
+        // Act
+        await _sut.DisposeAsync();
+
+        // Assert
+        await _dockerService
+            .Received(containerCount)
+            .StopAndRemoveContainerAsync(Arg.Is<string>(s => containerIds.Contains(s)));
+        
+        _dockerService
+            .Received(1)
+            .Dispose();
+    }
+
     private static BuildComplete GetValidBuildComplete()
     {
         return new BuildComplete

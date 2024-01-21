@@ -6,7 +6,7 @@ namespace PreviewEnvironments.Application.Extensions;
 internal static class DockerClientExtensions
 {
     public static async Task<ContainerListResponse?> GetContainerById(
-        this DockerClient dockerClient,
+        this IDockerClient dockerClient,
         string containerId,
         CancellationToken cancellationToken = default)
     {
@@ -35,7 +35,7 @@ internal static class DockerClientExtensions
     }
     
     public static async Task<ContainerListResponse?> GetContainerByName(
-        this DockerClient dockerClient,
+        this IDockerClient dockerClient,
         string name,
         CancellationToken cancellationToken = default)
     {
