@@ -15,7 +15,7 @@ internal static class HttpRequestMessageExtensions
     /// <returns>
     /// The <paramref name="message"/> with the authorization header appended.
     /// </returns>
-    public static HttpRequestMessage WithAuthorization(this HttpRequestMessage message, string accessToken)
+    public static HttpRequestMessage WithBasicAuthorization(this HttpRequestMessage message, string accessToken)
     {
         message.Headers.Authorization = new AuthenticationHeaderValue(
             scheme: "Basic",
@@ -34,7 +34,7 @@ internal static class HttpRequestMessageExtensions
     /// <returns>
     /// The <paramref name="message"/> with the body header appended.
     /// </returns>
-    public static HttpRequestMessage WithBody<T>(this HttpRequestMessage message, T body)
+    public static HttpRequestMessage WithJsonBody<T>(this HttpRequestMessage message, T body)
     {
         string bodyAsString = JsonSerializer.Serialize(body);
 

@@ -51,7 +51,9 @@ internal sealed partial class DockerService : IDockerService
         }
         
         ContainerListResponse? container = await _dockerClient
-            .GetContainerByName(Constants.Containers.PreviewImageRegistry);
+            .GetContainerByName(
+                Constants.Containers.PreviewImageRegistry,
+                cancellationToken);
 
         if (container is not null)
         {
@@ -210,7 +212,7 @@ internal sealed partial class DockerService : IDockerService
         try
         {
             ContainerListResponse? container = await _dockerClient
-                .GetContainerById(containerId);
+                .GetContainerById(containerId, cancellationToken);
 
             if (container is null)
             {
@@ -244,7 +246,7 @@ internal sealed partial class DockerService : IDockerService
         Log.AttemptingToStopContainer(_logger, containerId);
 
         ContainerListResponse? container = await _dockerClient
-            .GetContainerById(containerId);
+            .GetContainerById(containerId, cancellationToken);
 
         if (container is null)
         {
@@ -367,8 +369,15 @@ internal sealed partial class DockerService : IDockerService
                     throw new Exception("Maximum number of attempts reached.", ex);
                 }
 
-                string containerId = ex.GetContainerId();
+                string? containerId = ex.GetContainerId();
 
+                if (string.IsNullOrWhiteSpace(containerId))
+                {
+                    throw new Exception(
+                        "Could not determine the container id from the docker exception. See inner exception for more details.",
+                        ex);
+                }
+                
                 _ = await StopContainerAsync(
                     containerId,
                     cancellationToken

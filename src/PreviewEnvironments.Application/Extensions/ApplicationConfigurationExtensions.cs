@@ -28,7 +28,7 @@ public static class ApplicationConfigurationExtensions
     }
 
     internal static TMessage CreateAzureDevOpsMessage<TMessage>(
-        this ApplicationConfiguration configuration, string accessToken = "")
+        this ApplicationConfiguration configuration, string? accessToken = "")
         where TMessage : AzureDevOpsMessage, new()
     {
         if (string.IsNullOrWhiteSpace(accessToken))

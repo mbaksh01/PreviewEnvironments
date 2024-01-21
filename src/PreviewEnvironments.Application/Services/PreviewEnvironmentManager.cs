@@ -117,7 +117,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
                 if (port == default)
                 {
                     Log.NoAvailablePorts(_logger, supportedBuildDefinition.BuildDefinitionId);
-                    return;
+                    throw new Exception("No free port found to deploy container.");
                 }
             }
             

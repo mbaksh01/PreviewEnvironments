@@ -15,5 +15,10 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.1" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <InternalsVisibleTo Include="PreviewEnvironments.Application.Test.Unit" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
 
 </Project>

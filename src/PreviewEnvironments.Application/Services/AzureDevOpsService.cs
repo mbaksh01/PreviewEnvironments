@@ -71,8 +71,8 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
         };
 
         HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.ToString())
-            .WithAuthorization(accessToken)
-            .WithBody(thread);
+            .WithBasicAuthorization(accessToken)
+            .WithJsonBody(thread);
 
         _ = await _httpClient.SendAsync(request, cancellationToken);
     }
@@ -93,8 +93,8 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
         string accessToken = GetAccessToken();
         
         using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.Uri)
-            .WithAuthorization(accessToken)
-            .WithBody(ExpiredContainerThread);
+            .WithBasicAuthorization(accessToken)
+            .WithJsonBody(ExpiredContainerThread);
         
         using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 
@@ -148,8 +148,8 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
         };
 
         using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.Uri)
-            .WithAuthorization(message.AccessToken)
-            .WithBody(status);
+            .WithBasicAuthorization(message.AccessToken)
+            .WithJsonBody(status);
 
         using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 

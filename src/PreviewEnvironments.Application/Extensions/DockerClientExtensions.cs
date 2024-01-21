@@ -7,7 +7,8 @@ internal static class DockerClientExtensions
 {
     public static async Task<ContainerListResponse?> GetContainerById(
         this DockerClient dockerClient,
-        string containerId)
+        string containerId,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(containerId))
         {
@@ -28,14 +29,15 @@ internal static class DockerClientExtensions
                         [containerId] = true,
                     }
                 }
-            });
+            }, cancellationToken);
 
         return containers.SingleOrDefault();
     }
     
     public static async Task<ContainerListResponse?> GetContainerByName(
         this DockerClient dockerClient,
-        string name)
+        string name,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -56,7 +58,7 @@ internal static class DockerClientExtensions
                         [name] = true,
                     }
                 }
-            });
+            }, cancellationToken);
 
         return containers.SingleOrDefault();
     }
