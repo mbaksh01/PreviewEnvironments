@@ -155,6 +155,8 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
                     existingContainer,
                     cancellationToken: cancellationToken
                 );
+
+                port = existingContainer.Port;
             }
 
             lock (_containers)

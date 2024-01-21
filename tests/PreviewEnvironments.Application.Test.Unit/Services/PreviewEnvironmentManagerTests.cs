@@ -472,6 +472,86 @@ public class PreviewEnvironmentManagerTests
             message.PreviewEnvironmentAddress.Should().Be(expectedAddress);
         }
     }
+    
+    [Fact]
+    public async Task BuildComplete_Should_Use_The_Same_Port_When_A_Container_Is_Restarted_Successfully()
+    {
+        // Arrange
+        BuildComplete buildComplete = GetValidBuildComplete();
+        
+        _validator
+            .Validate(Arg.Any<ApplicationConfiguration>())
+            .Returns(new ValidationResult());
+        
+        _options.Value.AzureDevOps.SupportedBuildDefinitions =
+        [
+            new SupportedBuildDefinition
+            {
+                BuildDefinitionId = buildComplete.BuildDefinitionId,
+                ImageName = "test-image",
+                DockerRegistry = "docker.io"
+            }
+        ];
+
+        int port = 0;
+        
+        _dockerService
+            .RunContainerAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                buildComplete.BuildDefinitionId,
+                Arg.Any<int>(),
+                Arg.Any<string>(),
+                Arg.Any<int>())
+            .Returns(x => new DockerContainer
+            {
+                ContainerId = string.Empty,
+                ImageName = $"{x.ArgAt<string>(4)}/{x.ArgAt<string>(0)}",
+                ImageTag = x.ArgAt<string>(1),
+                Port = x.ArgAt<int>(3)
+            })
+            .AndDoes(x => port = x.ArgAt<int>(3));
+        
+        _dockerService
+            .RestartContainerAsync(
+                Arg.Any<DockerContainer>(),
+                Arg.Any<int>())
+            .Returns(x => new DockerContainer
+            {
+                ContainerId = string.Empty,
+                ImageName = x.Arg<DockerContainer>().ImageName,
+                ImageTag = x.Arg<DockerContainer>().ImageTag
+            })
+            .AndDoes(x => port = x.Arg<DockerContainer>().Port);
+
+        PreviewAvailableMessage? message = null;
+
+        _azureDevOpsService
+            .PostPreviewAvailableMessageAsync(Arg.Any<PreviewAvailableMessage>())
+            .Returns(Task.CompletedTask)
+            .AndDoes(x => message = x.Arg<PreviewAvailableMessage>());
+
+        await _sut.BuildCompleteAsync(buildComplete);
+        
+        // Act
+        await _sut.BuildCompleteAsync(buildComplete);
+
+        // Assert
+        await _azureDevOpsService
+            .Received(2)
+            .PostPreviewAvailableMessageAsync(Arg.Any<PreviewAvailableMessage>());
+        
+        string expectedAddress =
+            $"{_options.Value.Scheme}://{_options.Value.Host}:{port}";
+        
+        message.Should().NotBeNull();
+
+        using (new AssertionScope())
+        {
+            message!.PullRequestNumber.Should().Be(buildComplete.PullRequestNumber);
+            message.PreviewEnvironmentAddress.Should().Be(expectedAddress);
+        }
+    }
 
     [Fact]
     public async Task PullRequestUpdated_Should_Return_Early_When_Pull_Request_State_Is_Invalid()
