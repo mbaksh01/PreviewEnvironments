@@ -24,5 +24,11 @@ internal sealed partial class AzureDevOpsService
         
         [LoggerMessage(6, LogLevel.Error, "Failed to post the preview available message for pull request {PullRequestId}.", EventName = nameof(PostedPreviewAvailableFailed))]
         public static partial void PostedPreviewAvailableFailed(ILogger logger, Exception exception, int pullRequestId);
+
+        [LoggerMessage(7, LogLevel.Error, "Failed to get the pull request for pull request {PullRequestId}.", EventName = nameof(GetPullRequestByIdFailed))]
+        public static partial void GetPullRequestByIdFailed(ILogger logger, Exception exception, int pullRequestId);
+        
+        [LoggerMessage(8, LogLevel.Debug, "Successfully got the pull request for pull request {PullRequestId}.", EventName = nameof(GetPullRequestByIdSucceeded))]
+        public static partial void GetPullRequestByIdSucceeded(ILogger logger, int pullRequestId);
     }
 }

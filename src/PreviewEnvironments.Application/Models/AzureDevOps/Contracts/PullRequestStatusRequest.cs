@@ -1,12 +1,12 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
+namespace PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
 
 /// <summary>
 /// Model used to create a status on a pull request.
 /// Learn more here: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-statuses?view=azure-devops-rest-7.1
 /// </summary>
-public sealed class PullRequestStatus
+public sealed class PullRequestStatusRequest
 {
     /// <summary>
     /// Id of the iteration to associate status with. Minimum value is 1.

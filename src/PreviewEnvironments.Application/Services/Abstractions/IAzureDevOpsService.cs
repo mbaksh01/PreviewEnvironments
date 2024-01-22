@@ -1,4 +1,5 @@
 ﻿using PreviewEnvironments.Application.Models.AzureDevOps;
+using PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 
 namespace PreviewEnvironments.Application.Services.Abstractions;
@@ -32,4 +33,16 @@ internal interface IAzureDevOpsService
     /// Cancellation token used to stop this task.
     /// </param>
     Task PostPullRequestStatusAsync(PullRequestStatusMessage message, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Gets information about a pull request by its id.
+    /// </summary>
+    /// <param name="getPullRequest">Information about the location of the pull request.</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns>
+    /// The pull request linked to the pull request id provided in
+    /// <paramref name="getPullRequest"/> or <see langword="null"/> if an error
+    /// occurred.
+    /// </returns>
+    Task<PullRequestResponse?> GetPullRequestById(GetPullRequest getPullRequest, CancellationToken cancellationToken = default);
 }

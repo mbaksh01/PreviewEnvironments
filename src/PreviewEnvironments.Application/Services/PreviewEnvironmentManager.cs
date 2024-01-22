@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -6,6 +7,7 @@ using PreviewEnvironments.Application.Extensions;
 using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Models.AzureDevOps;
 using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
+using PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 using PreviewEnvironments.Application.Models.Docker;
 using PreviewEnvironments.Application.Services.Abstractions;
@@ -82,6 +84,26 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
         }
 
         // TODO: Validate Azure DevOps configuration and guard against invalid config.
+
+        GetPullRequest getPullRequest = _configuration
+            .CreateAzureDevOpsMessage<GetPullRequest>();
+
+        getPullRequest.PullRequestId = buildComplete.PullRequestNumber;
+        
+        PullRequestResponse? pullRequest =
+            await _azureDevOpsService.GetPullRequestById(getPullRequest, cancellationToken);
+        
+        if (pullRequest is null)
+        {
+            Log.PullRequestNotFound(_logger, buildComplete.PullRequestNumber);
+            return;
+        }
+        
+        if (pullRequest.Status is not "active")
+        {
+            Log.BuildCompleteInvalidPullRequestState(_logger, GetPullRequestState(pullRequest.Status));
+            return;
+        }
 
         try
         {
@@ -219,7 +241,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
     {
         if (pullRequestUpdated.State is PullRequestState.Active)
         {
-            Log.InvalidPullRequestState(_logger, pullRequestUpdated.State);
+            Log.PullRequestUpdatedInvalidPullRequestState(_logger, pullRequestUpdated.State);
             return;
         }
         
@@ -316,6 +338,17 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
         message.Port = port;
 
         return message;
+    }
+
+    private static PullRequestState GetPullRequestState(string state)
+    {
+        return state switch
+        {
+            "active" => PullRequestState.Active,
+            "abandoned" => PullRequestState.Abandoned,
+            "completed" => PullRequestState.Completed,
+            _ => throw new UnreachableException()
+        };
     }
 
     public async ValueTask DisposeAsync()

@@ -44,7 +44,13 @@ internal sealed partial class PreviewEnvironmentManager
         [LoggerMessage(12, LogLevel.Debug, "The build definition {BuildDefinitionId} was not found in the list of supported build definitions.", EventName = nameof(BuildDefinitionNotFound))]
         public static partial void BuildDefinitionNotFound(ILogger logger, int buildDefinitionId);
         
-        [LoggerMessage(13, LogLevel.Debug, "The pull request state '{PullRequestState}' is not supported. Expected Completed or Abandoned.", EventName = nameof(InvalidPullRequestState))]
-        public static partial void InvalidPullRequestState(ILogger logger, PullRequestState pullRequestState);
+        [LoggerMessage(13, LogLevel.Debug, "The pull request state '{PullRequestState}' is not supported. Expected Completed or Abandoned.", EventName = nameof(PullRequestUpdatedInvalidPullRequestState))]
+        public static partial void PullRequestUpdatedInvalidPullRequestState(ILogger logger, PullRequestState pullRequestState);
+        
+        [LoggerMessage(14, LogLevel.Debug, "The pull request state '{PullRequestState}' is not supported. Expected Active.", EventName = nameof(BuildCompleteInvalidPullRequestState))]
+        public static partial void BuildCompleteInvalidPullRequestState(ILogger logger, PullRequestState pullRequestState);
+
+        [LoggerMessage(15, LogLevel.Warning, "The pull request with id {PullRequestId} was not found. This may mean the applications configuration is invalid.", EventName = nameof(PullRequestNotFound))]
+        public static partial void PullRequestNotFound(ILogger logger, int pullRequestId);
     }
 }

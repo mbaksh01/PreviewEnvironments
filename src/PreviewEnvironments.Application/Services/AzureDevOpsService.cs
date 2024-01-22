@@ -1,9 +1,11 @@
 ﻿using System.Diagnostics;
+using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PreviewEnvironments.Application.Extensions;
 using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Models.AzureDevOps;
+using PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 using PreviewEnvironments.Application.Services.Abstractions;
 
@@ -15,7 +17,7 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
     private readonly HttpClient _httpClient;
     private readonly ApplicationConfiguration _configuration;
     
-    private static readonly PullRequestThread ExpiredContainerThread = new()
+    private static readonly PullRequestThreadRequest ExpiredContainerThread = new()
     {
         Comments =
         [
@@ -55,7 +57,7 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
             Query = "api-version=7.0"
         };
 
-        PullRequestThread thread = new()
+        PullRequestThreadRequest thread = new()
         {
             Comments =
             [
@@ -129,14 +131,7 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
         }
     }
     
-    /// <summary>
-    /// Posts a pull request status to Azure DevOps using the
-    /// <paramref name="message"/>.
-    /// </summary>
-    /// <param name="message">Information about the status.</param>
-    /// <param name="cancellationToken">
-    /// Cancellation token used to stop this task.
-    /// </param>
+    /// <inheritdoc />
     public async Task PostPullRequestStatusAsync(PullRequestStatusMessage message, CancellationToken cancellationToken = default)
     {
         message.AccessToken = GetAccessToken();
@@ -149,7 +144,7 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
             Query = "api-version=7.0",
         };
 
-        PullRequestStatus status = new()
+        PullRequestStatusRequest status = new()
         {
             State = GetStatus(message.State),
             Description = GetStatusDescription(message.State),
@@ -184,9 +179,51 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
         }
     }
 
+    /// <inheritdoc />
+    public async Task<PullRequestResponse?> GetPullRequestById(GetPullRequest getPullRequest, CancellationToken cancellationToken = default)
+    {
+        getPullRequest.AccessToken = GetAccessToken();
+
+        UriBuilder builder = new()
+        {
+            Scheme = getPullRequest.Scheme,
+            Host = getPullRequest.Host,
+            Path = $"{getPullRequest.Organization}/{getPullRequest.Project}/_apis/git/pullrequests/{getPullRequest.PullRequestId}",
+            Query = "api-version=7.0"
+        };
+
+        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, builder.Uri)
+            .WithBasicAuthorization(getPullRequest.AccessToken);
+
+        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+
+        try
+        {
+            _ = response.EnsureSuccessStatusCode();
+
+            PullRequestResponse? pullRequest = await response.Content
+                .ReadFromJsonAsync<PullRequestResponse>(cancellationToken);
+
+            Log.GetPullRequestByIdSucceeded(_logger, getPullRequest.PullRequestId);
+
+            return pullRequest;
+        }
+        catch (Exception ex)
+        {
+            Log.GetPullRequestByIdFailed(_logger, ex, getPullRequest.PullRequestId);
+
+            string apiResponse =
+                await response.Content.ReadAsStringAsync(cancellationToken);
+
+            Log.AzureDevOpsApiResponseError(_logger, apiResponse);
+
+            return null;
+        }
+    }
+
     /// <summary>
-    /// Converts a <see cref="PullRequestStatus"/> to its corresponding string
-    /// value.
+    /// Converts a <see cref="PullRequestStatusRequest"/> to its corresponding
+    /// string value.
     /// </summary>
     /// <param name="state"></param>
     /// <returns>The <paramref name="state"/> in its string format.</returns>
@@ -206,7 +243,7 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
     }
 
     /// <summary>
-    /// Converts a <see cref="PullRequestStatus"/> to its description.
+    /// Converts a <see cref="PullRequestStatusRequest"/> to its description.
     /// </summary>
     /// <param name="state"></param>
     /// <returns>The description for the <paramref name="state"/>.</returns>

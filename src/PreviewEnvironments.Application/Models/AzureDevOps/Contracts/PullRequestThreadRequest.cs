@@ -1,12 +1,12 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
+namespace PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
 
 /// <summary>
 /// Model used to create a thread on a pull request.
 /// Learn more here: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-threads?view=azure-devops-rest-7.1
 /// </summary>
-internal sealed class PullRequestThread
+internal sealed class PullRequestThreadRequest
 {
     /// <summary>
     /// Comments to post.
