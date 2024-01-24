@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Models.AzureDevOps;
 using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
+using PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 using PreviewEnvironments.Application.Models.Docker;
 using PreviewEnvironments.Application.Services;
@@ -124,6 +125,10 @@ public class PreviewEnvironmentManagerTests
             .PostPullRequestStatusAsync(Arg.Any<PullRequestStatusMessage>())
             .Returns(Task.CompletedTask)
             .AndDoes(x => messages.Add(x.Arg<PullRequestStatusMessage>()));
+        
+        _azureDevOpsService
+            .GetPullRequestById(Arg.Any<GetPullRequest>())
+            .Returns(new PullRequestResponse { Status = "active" });
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
@@ -198,6 +203,10 @@ public class PreviewEnvironmentManagerTests
                 ImageTag = string.Empty
             })
             .AndDoes(x => port = x.ArgAt<int>(3));
+        
+        _azureDevOpsService
+            .GetPullRequestById(Arg.Any<GetPullRequest>())
+            .Returns(new PullRequestResponse { Status = "active" });
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
@@ -245,6 +254,10 @@ public class PreviewEnvironmentManagerTests
                 BuildDefinitionId = buildComplete.BuildDefinitionId,
             })
             .AndDoes(x => port = x.ArgAt<int>(3));
+        
+        _azureDevOpsService
+            .GetPullRequestById(Arg.Any<GetPullRequest>())
+            .Returns(new PullRequestResponse { Status = "active" });
         
         await _sut.BuildCompleteAsync(buildComplete);
 
@@ -298,6 +311,10 @@ public class PreviewEnvironmentManagerTests
                 BuildDefinitionId = buildComplete.BuildDefinitionId,
             });
         
+        _azureDevOpsService
+            .GetPullRequestById(Arg.Any<GetPullRequest>())
+            .Returns(new PullRequestResponse { Status = "active" });
+        
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
         await _sut.BuildCompleteAsync(buildComplete);
@@ -342,6 +359,10 @@ public class PreviewEnvironmentManagerTests
                 BuildDefinitionId = buildComplete.BuildDefinitionId
             }
         ];
+        
+        _azureDevOpsService
+            .GetPullRequestById(Arg.Any<GetPullRequest>())
+            .Returns(new PullRequestResponse { Status = "active" });
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
@@ -394,6 +415,10 @@ public class PreviewEnvironmentManagerTests
                 BuildDefinitionId = x.ArgAt<int>(2),
                 Port = x.ArgAt<int>(3),
             });
+        
+        _azureDevOpsService
+            .GetPullRequestById(Arg.Any<GetPullRequest>())
+            .Returns(new PullRequestResponse { Status = "active" });
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
@@ -452,6 +477,10 @@ public class PreviewEnvironmentManagerTests
             .PostPreviewAvailableMessageAsync(Arg.Any<PreviewAvailableMessage>())
             .Returns(Task.CompletedTask)
             .AndDoes(x => message = x.Arg<PreviewAvailableMessage>());
+
+        _azureDevOpsService
+            .GetPullRequestById(Arg.Any<GetPullRequest>())
+            .Returns(new PullRequestResponse { Status = "active" });
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
@@ -530,6 +559,10 @@ public class PreviewEnvironmentManagerTests
             .PostPreviewAvailableMessageAsync(Arg.Any<PreviewAvailableMessage>())
             .Returns(Task.CompletedTask)
             .AndDoes(x => message = x.Arg<PreviewAvailableMessage>());
+        
+        _azureDevOpsService
+            .GetPullRequestById(Arg.Any<GetPullRequest>())
+            .Returns(new PullRequestResponse { Status = "active" });
 
         await _sut.BuildCompleteAsync(buildComplete);
         
@@ -631,6 +664,10 @@ public class PreviewEnvironmentManagerTests
                 PullRequestId = buildComplete.PullRequestNumber
             });
         
+        _azureDevOpsService
+            .GetPullRequestById(Arg.Any<GetPullRequest>())
+            .Returns(new PullRequestResponse { Status = "active" });
+        
         await _sut.BuildCompleteAsync(buildComplete);
         
         // Act
@@ -691,6 +728,10 @@ public class PreviewEnvironmentManagerTests
             });
 
         _options.Value.Docker.ContainerTimeoutSeconds = 30;
+        
+        _azureDevOpsService
+            .GetPullRequestById(Arg.Any<GetPullRequest>())
+            .Returns(new PullRequestResponse { Status = "active" });
 
         for (int i = 0; i < expiredContainerCount; i++)
         {
@@ -759,6 +800,10 @@ public class PreviewEnvironmentManagerTests
             });
 
         _options.Value.Docker.ContainerTimeoutSeconds = 30;
+        
+        _azureDevOpsService
+            .GetPullRequestById(Arg.Any<GetPullRequest>())
+            .Returns(new PullRequestResponse { Status = "active" });
 
         for (int i = 0; i < containerCount; i++)
         {
