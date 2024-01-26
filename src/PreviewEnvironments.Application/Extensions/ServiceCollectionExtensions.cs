@@ -5,6 +5,7 @@ using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Services;
 using PreviewEnvironments.Application.Services.Abstractions;
 using PreviewEnvironments.Application.Validators;
+using IConfigurationManager = PreviewEnvironments.Application.Services.Abstractions.IConfigurationManager;
 
 namespace PreviewEnvironments.Application.Extensions;
 
@@ -21,10 +22,11 @@ public static class ServiceCollectionExtensions
     {
         _ = services
             .AddSingleton<IPreviewEnvironmentManager, PreviewEnvironmentManager>()
-            .AddSingleton<IAzureDevOpsService, AzureDevOpsService>()
-            .AddSingleton<IDockerService, DockerService>()
+            .AddSingleton<IConfigurationManager, LocalConfigurationManager>()
             .AddSingleton<HttpClient>()
-            .AddSingleton<IValidator<ApplicationConfiguration>, ApplicationConfigurationValidator>();
+            .AddTransient<IValidator<ApplicationConfiguration>, ApplicationConfigurationValidator>()
+            .AddTransient<IAzureDevOpsService, AzureDevOpsService>()
+            .AddTransient<IDockerService, DockerService>();
         
         _ = services.Configure<ApplicationConfiguration>(options =>
         {

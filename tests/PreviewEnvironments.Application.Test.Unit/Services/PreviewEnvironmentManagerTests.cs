@@ -20,20 +20,39 @@ public class PreviewEnvironmentManagerTests
     private readonly IValidator<ApplicationConfiguration> _validator;
     private readonly IOptions<ApplicationConfiguration> _options;
     private readonly IDockerService _dockerService;
-    
+    private readonly IConfigurationManager _configurationManager;
+
     public PreviewEnvironmentManagerTests()
     {
         _azureDevOpsService = Substitute.For<IAzureDevOpsService>();
         _validator = Substitute.For<IValidator<ApplicationConfiguration>>();
         _options = Options.Create(new ApplicationConfiguration());
         _dockerService = Substitute.For<IDockerService>();
+        _configurationManager = Substitute.For<IConfigurationManager>();
         
         _sut = new PreviewEnvironmentManager(
             Substitute.For<ILogger<PreviewEnvironmentManager>>(),
             _validator,
             _options,
             _azureDevOpsService,
-            _dockerService);
+            _dockerService,
+            _configurationManager);
+    }
+
+    [Fact]
+    public async Task InitialiseAsync_Should_Initialise_Dependant_Services()
+    {
+        // Act
+        await _sut.InitialiseAsync();
+
+        // Assert
+        await _dockerService
+            .Received(1)
+            .InitialiseAsync();
+
+        await _configurationManager
+            .Received(1)
+            .LoadConfigurationsAsync();
     }
     
     [Fact]

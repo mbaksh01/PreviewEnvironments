@@ -1,0 +1,26 @@
+﻿{
+  "deployment": {
+    "containerHostAddress": "https://pe.redev.co.uk",
+    "imageName": "proreviseweb.blazor",
+    "imageRegistry": "cr.redev.co.uk",
+    "allowedDeploymentPorts": [
+      10001,
+      10002,
+      10003,
+      10004
+    ],
+    "containerTimeoutSeconds": 600,
+    "createContainerRetryCount": 3
+  },
+  "gitProvider": "AzureRepos",
+  "azureRepos": {
+    "organizationName": "RedevClients",
+    "projectName": "ProRevise",
+    "personalAccessToken": ""
+  },
+  "buildServerProvider": "AzurePipelines",
+  "azurePipelines": {
+    "projectName": "ProRevise",
+    "buildDefinitionId": 110
+  }
+}

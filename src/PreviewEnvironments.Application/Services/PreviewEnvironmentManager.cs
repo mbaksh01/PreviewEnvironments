@@ -20,6 +20,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
     private readonly IValidator<ApplicationConfiguration> _validator;
     private readonly IAzureDevOpsService _azureDevOpsService;
     private readonly IDockerService _dockerService;
+    private readonly IConfigurationManager _configurationManager;
     private readonly ApplicationConfiguration _configuration;
     private readonly ConcurrentDictionary<string, DockerContainer> _containers;
     
@@ -28,19 +29,22 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
         IValidator<ApplicationConfiguration> validator,
         IOptions<ApplicationConfiguration> configuration,
         IAzureDevOpsService azureDevOpsService,
-        IDockerService dockerService)
+        IDockerService dockerService,
+        IConfigurationManager configurationManager)
     {
         _logger = logger;
         _validator = validator;
         _azureDevOpsService = azureDevOpsService;
         _dockerService = dockerService;
+        _configurationManager = configurationManager;
         _configuration = configuration.Value;
         _containers = new ConcurrentDictionary<string, DockerContainer>();
     }
 
-    public Task InitialiseAsync(CancellationToken cancellationToken = default)
+    public async Task InitialiseAsync(CancellationToken cancellationToken = default)
     {
-        return _dockerService.InitialiseAsync(cancellationToken);
+        await _configurationManager.LoadConfigurationsAsync(cancellationToken);
+        await _dockerService.InitialiseAsync(cancellationToken);
     }
     
     /// <summary>

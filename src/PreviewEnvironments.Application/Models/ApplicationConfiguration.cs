@@ -35,6 +35,8 @@ public sealed class ApplicationConfiguration
     /// Scheme of the <see cref="Host"/>.
     /// </summary>
     public string Scheme { get; set; } = "http";
+
+    public string ConfigurationFolder { get; set; } = string.Empty;
 }
 
 public sealed class DockerConfiguration
