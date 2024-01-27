@@ -1,6 +1,6 @@
-﻿using PreviewEnvironments.API.Contracts.AzureDevOps.v1;
-using PreviewEnvironments.API.Mappers;
+﻿using PreviewEnvironments.API.Mappers;
 using PreviewEnvironments.Application.Services.Abstractions;
+using PreviewEnvironments.Contracts.AzureDevOps.v1;
 
 namespace PreviewEnvironments.API.Endpoints.AzureDevOps;
 

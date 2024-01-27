@@ -13,8 +13,8 @@ internal sealed partial class DockerService
         [LoggerMessage(2, LogLevel.Debug, "Attempting to run container with the following arguments. Image Registry: '{ImageRegistry}', Image Name: '{ImageName}', Image Tag: '{ImageTag}', Public Port: '{PublicPort}'.", EventName = nameof(AttemptingToRunContainer))]
         public static partial void AttemptingToRunContainer(ILogger logger, string imageRegistry, string imageName, string imageTag, int publicPort);
         
-        [LoggerMessage(3, LogLevel.Debug, "No build definition with id {BuildDefinitionId} was found.", EventName = nameof(BuildDefinitionNotFound))]
-        public static partial void BuildDefinitionNotFound(ILogger logger, int buildDefinitionId);
+        [LoggerMessage(3, LogLevel.Debug, "No build with internal id '{BuildDefinitionId}' was found.", EventName = nameof(BuildDefinitionNotFound))]
+        public static partial void BuildDefinitionNotFound(ILogger logger, string buildDefinitionId);
         
         [LoggerMessage(4, LogLevel.Debug, "Restarting container with the following arguments. Image Registry: '{ImageRegistry}', Image Name: '{ImageName}', Image Tag: '{ImageTag}', Public Port: '{PublicPort}'.", EventName = nameof(RestartingContainer))]
         public static partial void RestartingContainer(ILogger logger, string imageRegistry, string imageName, string imageTag, int publicPort);

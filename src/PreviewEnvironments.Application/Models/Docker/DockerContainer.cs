@@ -46,7 +46,7 @@ public sealed class DockerContainer
     public int Port { get; set; }
 
     /// <summary>
-    /// Id of the build definition that triggered the creation of this container.
+    /// Internal id of the build that triggered the creation of this container.
     /// </summary>
-    public int BuildDefinitionId { get; set; }
+    public string InternalBuildId { get; set; }
 }

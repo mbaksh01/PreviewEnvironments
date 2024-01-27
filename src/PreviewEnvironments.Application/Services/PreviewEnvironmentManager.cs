@@ -3,9 +3,7 @@ using System.Diagnostics;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using PreviewEnvironments.Application.Extensions;
 using PreviewEnvironments.Application.Models;
-using PreviewEnvironments.Application.Models.AzureDevOps;
 using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
 using PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
@@ -18,7 +16,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
 {
     private readonly ILogger<PreviewEnvironmentManager> _logger;
     private readonly IValidator<ApplicationConfiguration> _validator;
-    private readonly IAzureDevOpsService _azureDevOpsService;
+    private readonly IGitProviderFactory _gitProviderFactory;
     private readonly IDockerService _dockerService;
     private readonly IConfigurationManager _configurationManager;
     private readonly ApplicationConfiguration _configuration;
@@ -28,13 +26,13 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
         ILogger<PreviewEnvironmentManager> logger,
         IValidator<ApplicationConfiguration> validator,
         IOptions<ApplicationConfiguration> configuration,
-        IAzureDevOpsService azureDevOpsService,
+        IGitProviderFactory gitProviderFactory,
         IDockerService dockerService,
         IConfigurationManager configurationManager)
     {
         _logger = logger;
         _validator = validator;
-        _azureDevOpsService = azureDevOpsService;
+        _gitProviderFactory = gitProviderFactory;
         _dockerService = dockerService;
         _configurationManager = configurationManager;
         _configuration = configuration.Value;
@@ -44,6 +42,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
     public async Task InitialiseAsync(CancellationToken cancellationToken = default)
     {
         await _configurationManager.LoadConfigurationsAsync(cancellationToken);
+        // _configurationManager.ValidateConfigurations();
         await _dockerService.InitialiseAsync(cancellationToken);
     }
     
@@ -76,26 +75,23 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
             Log.InvalidApplicationConfiguration(_logger);
         }
 
-        SupportedBuildDefinition? supportedBuildDefinition = _configuration
-            .AzureDevOps
-            .SupportedBuildDefinitions
-            .FirstOrDefault(sbd => sbd.BuildDefinitionId == buildComplete.BuildDefinitionId);
+        PreviewEnvironmentConfiguration? configuration =
+            _configurationManager.GetConfigurationByBuildId(buildComplete.InternalBuildId);
 
-        if (supportedBuildDefinition is null)
+        if (configuration is null)
         {
-            Log.BuildDefinitionNotFound(_logger, buildComplete.BuildDefinitionId);
+            Log.PreviewEnvironmentConfigurationNotFound(_logger, buildComplete.InternalBuildId);
             return;
         }
 
-        // TODO: Validate Azure DevOps configuration and guard against invalid config.
-
-        GetPullRequest getPullRequest = _configuration
-            .CreateAzureDevOpsMessage<GetPullRequest>();
-
-        getPullRequest.PullRequestId = buildComplete.PullRequestNumber;
+        IGitProvider gitProvider = _gitProviderFactory.CreateProvider(
+            GetGitProviderFromString(configuration.GitProvider));
         
         PullRequestResponse? pullRequest =
-            await _azureDevOpsService.GetPullRequestById(getPullRequest, cancellationToken);
+            await gitProvider.GetPullRequestById(
+                buildComplete.InternalBuildId,
+                buildComplete.PullRequestNumber,
+                cancellationToken);
         
         if (pullRequest is null)
         {
@@ -111,15 +107,15 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
 
         try
         {
-            await _azureDevOpsService.PostPullRequestStatusAsync(
-                CreateStatusMessage(
-                    buildComplete,
-                    PullRequestStatusState.Pending),
+            await gitProvider.PostPullRequestStatusAsync(
+                buildComplete.InternalBuildId,
+                buildComplete.PullRequestNumber,
+                PullRequestStatusState.Pending,
                 cancellationToken);
             
             int port;
             
-            if (supportedBuildDefinition.AllowedImagePorts.Length == 0)
+            if (configuration.Deployment.AllowedDeploymentPorts.Length == 0)
             {
                 port = Random.Shared.Next(10_000, 60_000);
             }
@@ -131,18 +127,19 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
                 {
                     takenPorts = _containers
                         .Values
-                        .Where(c => c.BuildDefinitionId == supportedBuildDefinition.BuildDefinitionId)
+                        .Where(c => c.InternalBuildId == buildComplete.InternalBuildId)
                         .Select(c => c.Port)
                         .ToArray();
                 }
             
-                port = supportedBuildDefinition
-                    .AllowedImagePorts
+                port = configuration
+                    .Deployment
+                    .AllowedDeploymentPorts
                     .FirstOrDefault(p => takenPorts.Contains(p) == false);
             
                 if (port == default)
                 {
-                    Log.NoAvailablePorts(_logger, supportedBuildDefinition.BuildDefinitionId);
+                    Log.NoAvailablePorts(_logger, buildComplete.InternalBuildId);
                     throw new Exception("No free port found to deploy container.");
                 }
             }
@@ -155,7 +152,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
                 // ASSUMPTION: Assuming that the tag is the pr number with 'pr-' prefixed.
                 existingContainer = _containers.Values.SingleOrDefault(
                     dc =>
-                        dc.ImageName == $"{supportedBuildDefinition.DockerRegistry}/{supportedBuildDefinition.ImageName.ToLower()}"
+                        dc.ImageName == $"{configuration.Deployment.ImageRegistry}/{configuration.Deployment.ImageName.ToLower()}"
                         && dc.ImageTag == $"pr-{buildComplete.PullRequestNumber}"
                 );
             }
@@ -165,11 +162,11 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
                 Log.NoContainerLinkedToPr(_logger, buildComplete.PullRequestNumber);
                 
                 newContainer = await _dockerService.RunContainerAsync(
-                    supportedBuildDefinition.ImageName,
+                    configuration.Deployment.ImageName,
                     $"pr-{buildComplete.PullRequestNumber}",
-                    supportedBuildDefinition.BuildDefinitionId,
+                    buildComplete.InternalBuildId,
                     port,
-                    supportedBuildDefinition.DockerRegistry,
+                    configuration.Deployment.ImageRegistry,
                     cancellationToken: cancellationToken
                 );
             }
@@ -198,32 +195,29 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
                 }
             }
 
-            PreviewAvailableMessage message = _configuration
-                .CreateAzureDevOpsMessage<PreviewAvailableMessage>();
+            Uri containerAddress = new(
+                $"{configuration.Deployment.ContainerHostAddress}:{port}");
+            
+            await gitProvider.PostPreviewAvailableMessageAsync(
+                buildComplete.InternalBuildId,
+                buildComplete.PullRequestNumber,
+                containerAddress,
+                cancellationToken);
 
-            message.PullRequestNumber = buildComplete.PullRequestNumber;
-            message.PreviewEnvironmentAddress =
-                $"{_configuration.Scheme}://{_configuration.Host}:{port}";
-
-            await _azureDevOpsService.PostPreviewAvailableMessageAsync(message, cancellationToken);
-
-            await _azureDevOpsService.PostPullRequestStatusAsync(
-                CreateStatusMessage(
-                    buildComplete,
-                    PullRequestStatusState.Succeeded,
-                    port
-                ),
+            await gitProvider.PostPullRequestStatusAsync(
+                buildComplete.InternalBuildId,
+                buildComplete.PullRequestNumber,
+                PullRequestStatusState.Succeeded,
                 cancellationToken);
         }
         catch (Exception ex)
         {
             Log.ErrorProcessingBuildCompleteMessage(_logger, ex);
 
-            await _azureDevOpsService.PostPullRequestStatusAsync(
-                CreateStatusMessage(
-                    buildComplete,
-                    PullRequestStatusState.Failed
-                ),
+            await gitProvider.PostPullRequestStatusAsync(
+                buildComplete.InternalBuildId,
+                buildComplete.PullRequestNumber,
+                PullRequestStatusState.Failed,
                 cancellationToken);
         }
     }
@@ -287,61 +281,46 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
     public async Task ExpireContainersAsync(CancellationToken cancellationToken = default)
     {
         Log.FindingAndStoppingContainers(_logger);
-    
-        DockerContainer[] containers;
-    
+
+        List<DockerContainer> expiredContainers = [];
+
         lock (_containers)
         {
-            TimeSpan timeout = TimeSpan.FromSeconds(_configuration.Docker.ContainerTimeoutSeconds);
-            
-            containers = _containers
-                .Where(c =>
-                    c.Value.CreatedTime + timeout < DateTimeOffset.UtcNow
-                    && c.Value is { CanExpire: true, Expired: false }
-                )
-                .Select(c => c.Value)
-                .ToArray();
+            foreach (DockerContainer container in _containers.Values)
+            {
+                Deployment? deployment = _configurationManager
+                    .GetConfigurationByBuildId(container.InternalBuildId)?.Deployment;
+
+                if (deployment is null)
+                {
+                    continue;
+                }
+
+                TimeSpan timeout =
+                    TimeSpan.FromSeconds(deployment.ContainerTimeoutSeconds);
+
+                if (container.CreatedTime + timeout >= DateTimeOffset.Now)
+                {
+                    continue;
+                }
+
+                expiredContainers.Add(container);
+            }
         }
-    
-        Log.FoundContainersToExpire(_logger, containers.Length);
-    
-        foreach (DockerContainer container in containers)
+
+        Log.FoundContainersToExpire(_logger, expiredContainers.Count);
+
+        foreach (DockerContainer expiredContainer in expiredContainers)
         {
-            container.Expired = await _dockerService.StopContainerAsync(
-                container.ContainerId,
-                cancellationToken
-            );
-
-            await _azureDevOpsService.PostExpiredContainerMessageAsync(
-                container.PullRequestId,
+            expiredContainer.Expired = await _dockerService.StopContainerAsync(
+                expiredContainer.ContainerId,
                 cancellationToken);
+
+            // TODO: Fix this
+            // await _gitProviderFactory.PostExpiredContainerMessageAsync(
+            //     expiredContainer.PullRequestId,
+            //     cancellationToken);
         }
-    }
-    
-    /// <summary>
-    /// Creates a <see cref="PullRequestStatusMessage"/> from the given
-    /// parameters and the current configuration.
-    /// </summary>
-    /// <param name="buildComplete"></param>
-    /// <param name="state">State of the preview environment.</param>
-    /// <param name="port">Port the container was started on.</param>
-    /// <returns>
-    /// A correctly initialised <see cref="PullRequestStatusMessage"/>.
-    /// </returns>
-    private PullRequestStatusMessage CreateStatusMessage(
-        BuildComplete buildComplete,
-        PullRequestStatusState state,
-        int port = 0)
-    {
-        PullRequestStatusMessage message = _configuration
-            .CreateAzureDevOpsMessage<PullRequestStatusMessage>();
-
-        message.PullRequestNumber = buildComplete.PullRequestNumber;
-        message.BuildPipelineAddress = buildComplete.BuildUrl.ToString();
-        message.State = state;
-        message.Port = port;
-
-        return message;
     }
 
     private static PullRequestState GetPullRequestState(string state)
@@ -352,6 +331,16 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
             "abandoned" => PullRequestState.Abandoned,
             "completed" => PullRequestState.Completed,
             _ => throw new UnreachableException()
+        };
+    }
+
+    private static GitProvider GetGitProviderFromString(string provider)
+    {
+        return provider switch
+        {
+            Constants.GitProviders.AzureRepos => GitProvider.AzureRepos,
+            _ => throw new NotSupportedException(
+                $"The git provider '{provider}' is not supported.")
         };
     }
 

@@ -3,7 +3,7 @@ using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 
 namespace PreviewEnvironments.Application.Services;
 
-internal sealed partial class AzureDevOpsService
+internal sealed partial class AzureReposGitProvider
 {
     private static partial class Log
     {

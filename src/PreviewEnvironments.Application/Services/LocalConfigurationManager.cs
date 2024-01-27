@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using PreviewEnvironments.Application.Helpers;
 using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Services.Abstractions;
 
@@ -16,7 +17,7 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
         PropertyNameCaseInsensitive = true
     };
     
-    private List<PreviewEnvironmentConfiguration> _configurations = [];
+    private Dictionary<string, PreviewEnvironmentConfiguration> _configurations = [];
 
     public LocalConfigurationManager(
         ILogger<LocalConfigurationManager> logger,
@@ -45,6 +46,16 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
         throw new NotImplementedException();
     }
 
+    public PreviewEnvironmentConfiguration? GetConfigurationByBuildId(
+        string buildCompleteInternalBuildId)
+    {
+        _ = _configurations.TryGetValue(
+            buildCompleteInternalBuildId,
+            out PreviewEnvironmentConfiguration? configuration);
+
+        return configuration;
+    }
+
     private async Task LoadConfiguration(string path, CancellationToken cancellationToken)
     {
         using StreamReader reader = new(stream: File.Open(path, FileMode.Open));
@@ -56,10 +67,17 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
 
         if (configuration is null)
         {
-            Log.InvalidConfigurationFile(_logger, path);
+            Log.InvalidConfigurationFileFormat(_logger, path);
             return;
         }
-             
-        _configurations.Add(configuration);
+
+        if (configuration.BuildServer is Constants.BuildServers.AzurePipelines)
+        {
+            _configurations.Add(
+                IdHelper.GetAzurePipelinesId(configuration.AzurePipelines!),
+                configuration);
+        }
+
+        Log.InvalidBuildServerConfiguration(_logger, path);
     }
 }

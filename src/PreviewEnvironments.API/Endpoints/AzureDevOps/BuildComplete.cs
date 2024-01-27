@@ -1,9 +1,6 @@
-﻿using Microsoft.Extensions.Options;
-using PreviewEnvironments.API.Contracts.AzureDevOps.v2;
-using PreviewEnvironments.API.Extensions;
-using PreviewEnvironments.API.Mappers;
-using PreviewEnvironments.Application.Models;
+﻿using PreviewEnvironments.API.Mappers;
 using PreviewEnvironments.Application.Services.Abstractions;
+using PreviewEnvironments.Contracts.AzureDevOps.v2;
 
 namespace PreviewEnvironments.API.Endpoints.AzureDevOps;
 
@@ -17,11 +14,8 @@ public static class BuildComplete
             Constants.EndPoints.VSTFS.BuildComplete,
             async (
                 BuildCompleteContract contract,
-                IPreviewEnvironmentManager previewEnvironmentManager,
-                IOptions<ApplicationConfiguration> options) =>
+                IPreviewEnvironmentManager previewEnvironmentManager) =>
             {
-                options.Apply(contract);
-
                 await previewEnvironmentManager.BuildCompleteAsync(contract.ToModel());
 
                 return Results.NoContent();

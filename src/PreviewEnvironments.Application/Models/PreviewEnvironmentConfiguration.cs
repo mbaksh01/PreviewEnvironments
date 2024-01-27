@@ -5,7 +5,7 @@ public class PreviewEnvironmentConfiguration
     public PreviewEnvironmentConfiguration()
     {
         GitProvider = SetGitProvider();
-        BuildServerProvider = SetBuildServerProvider();
+        BuildServer = SetBuildServerProvider();
     }
 
     /// <summary>
@@ -18,7 +18,7 @@ public class PreviewEnvironmentConfiguration
     /// Name of the build server provider. This will be used to uniquely
     /// identify and incoming webhook with a configuration file.
     /// </summary>
-    public string BuildServerProvider { get; init; }
+    public string BuildServer { get; init; }
 
     /// <summary>
     /// Stores configuration related to the deployment.
@@ -49,7 +49,7 @@ public class PreviewEnvironmentConfiguration
     {
         if (AzurePipelines is not null)
         {
-            return "AzurePipelines";
+            return Constants.BuildServers.AzurePipelines;
         }
 
         return "Unknown";
@@ -99,6 +99,11 @@ public class Deployment
 public class AzureRepos
 {
     /// <summary>
+    /// Address where the repo can be access from.
+    /// </summary>
+    public Uri BaseAddress { get; set; } = new("https://dev.azure.com");
+    
+    /// <summary>
     /// Name of the organization containing the repository where pull request
     /// messages and statuses will be posted.
     /// </summary>
@@ -130,7 +135,7 @@ public class AzureRepos
 /// <summary>
 /// Model containing information about Azure Pipelines.
 /// </summary>
-public class AzurePipelines
+public class AzurePipelines : IBuildPipeline
 {
     /// <summary>
     /// Name of the project containing the pipeline which will trigger the
@@ -142,4 +147,14 @@ public class AzurePipelines
     /// Build definition id of the pipeline which will trigger the webhook.
     /// </summary>
     public int BuildDefinitionId { get; set; }
+
+    public string GetId()
+    {
+        return $"{ProjectName}-{BuildDefinitionId}";
+    }
+}
+
+public interface IBuildPipeline
+{
+    string GetId();
 }

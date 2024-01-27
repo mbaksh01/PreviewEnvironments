@@ -16,13 +16,17 @@ namespace PreviewEnvironments.Application.Services;
 internal sealed partial class DockerService : IDockerService
 {
     private readonly ILogger<DockerService> _logger;
+    private readonly IConfigurationManager _configurationManager;
     private readonly ApplicationConfiguration _configuration;
     private readonly DockerClient _dockerClient;
     private readonly Progress<JSONMessage> _progress;
     
-    public DockerService(ILogger<DockerService> logger, IOptions<ApplicationConfiguration> configuration)
+    public DockerService(ILogger<DockerService> logger,
+        IOptions<ApplicationConfiguration> configuration,
+        IConfigurationManager configurationManager)
     {
         _logger = logger;
+        _configurationManager = configurationManager;
         _configuration = configuration.Value;
         _dockerClient = new DockerClientConfiguration().CreateClient();
         _progress = new Progress<JSONMessage>();
@@ -82,6 +86,7 @@ internal sealed partial class DockerService : IDockerService
             5000,
             registryPort,
             Constants.Containers.PreviewImageRegistry,
+            3,
             cancellationToken
         );
 
@@ -117,7 +122,7 @@ internal sealed partial class DockerService : IDockerService
     public async Task<DockerContainer?> RunContainerAsync(
         string imageName,
         string imageTag,
-        int buildDefinitionId,
+        string internalBuildId,
         int publicPort,
         string registry = "localhost:5002",
         int exposedPort = 80,
@@ -128,11 +133,11 @@ internal sealed partial class DockerService : IDockerService
 
         imageName = imageName.ToLower();
 
-        SupportedBuildDefinition? supportedBuildDefinition = _configuration.GetBuildDefinition(buildDefinitionId);
-
-        if (supportedBuildDefinition is null)
+        Deployment? deployment = _configurationManager.GetConfigurationByBuildId(internalBuildId)?.Deployment;
+        
+        if (deployment is null)
         {
-            Log.BuildDefinitionNotFound(_logger, buildDefinitionId);
+            Log.BuildDefinitionNotFound(_logger, internalBuildId);
             return null;
         }
 
@@ -151,6 +156,7 @@ internal sealed partial class DockerService : IDockerService
             exposedPort,
             publicPort,
             containerName,
+            deployment.CreateContainerRetryCount,
             cancellationToken
         );
 
@@ -162,7 +168,7 @@ internal sealed partial class DockerService : IDockerService
             ImageName = $"{registry}/{imageName}",
             ImageTag = imageTag,
             PullRequestId = int.Parse(imageTag.AsSpan(imageTag.IndexOf('-') + 1)),
-            BuildDefinitionId = buildDefinitionId,
+            InternalBuildId = internalBuildId,
             Port = publicPort
         };
         
@@ -198,7 +204,7 @@ internal sealed partial class DockerService : IDockerService
         return await RunContainerAsync(
             imageName,
             existingContainer.ImageTag,
-            existingContainer.BuildDefinitionId,
+            existingContainer.InternalBuildId,
             existingContainer.Port,
             registry,
             exposedPort,
@@ -311,6 +317,7 @@ internal sealed partial class DockerService : IDockerService
         int exposedPort,
         int publicPort,
         string containerName,
+        int createContainerRetryCount,
         CancellationToken cancellationToken = default
     )
     {
@@ -364,7 +371,7 @@ internal sealed partial class DockerService : IDockerService
                 Log.ErrorCreatingContainerConflict(_logger, ex);
                 Log.AttemptingToStopAndRemoveConflictContainer(_logger);
                 
-                if (attempt > _configuration.Docker.CreateContainerRetryCount)
+                if (attempt > createContainerRetryCount)
                 {
                     throw new Exception("Maximum number of attempts reached.", ex);
                 }

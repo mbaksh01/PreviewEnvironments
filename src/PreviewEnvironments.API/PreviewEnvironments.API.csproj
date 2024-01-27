@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PreviewEnvironments.Application\PreviewEnvironments.Application.csproj" />
+    <ProjectReference Include="..\PreviewEnvironments.Contracts\PreviewEnvironments.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

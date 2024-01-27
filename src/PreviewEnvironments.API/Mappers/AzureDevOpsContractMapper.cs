@@ -1,8 +1,9 @@
-﻿using PreviewEnvironments.API.Contracts.AzureDevOps.v1;
-using PreviewEnvironments.API.Contracts.AzureDevOps.v2;
+﻿using PreviewEnvironments.Contracts.AzureDevOps.v1;
+using PreviewEnvironments.Contracts.AzureDevOps.v2;
 using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 using System.Diagnostics;
+using PreviewEnvironments.Application.Helpers;
 
 namespace PreviewEnvironments.API.Mappers;
 
@@ -23,7 +24,7 @@ public static class AzureDevOpsContractMapper
             BuildStatus = status,
             PullRequestNumber = contract.Resource.TriggerInfo?.PrNumber ?? 0,
             BuildUrl = contract.Resource.Links.Web.Href,
-            BuildDefinitionId = contract.Resource.Definition.Id
+            InternalBuildId = IdHelper.GetAzurePipelinesContractId(contract)
         };
     }
 

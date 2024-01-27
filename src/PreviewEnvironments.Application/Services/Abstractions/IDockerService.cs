@@ -21,7 +21,7 @@ internal interface IDockerService : IDisposable
     /// </summary>
     /// <param name="imageName">Name of the image to use.</param>
     /// <param name="imageTag">Tag of the image to use.</param>
-    /// <param name="buildDefinitionId">
+    /// <param name="internalBuildId">
     /// Build definition linked to this container. Used for tracking purposes.
     /// </param>
     /// <param name="publicPort">Port number which can be used to access the container.</param>
@@ -38,7 +38,7 @@ internal interface IDockerService : IDisposable
     Task<DockerContainer?> RunContainerAsync(
         string imageName,
         string imageTag,
-        int buildDefinitionId,
+        string internalBuildId,
         int publicPort,
         string registry = "localhost:5002",
         int exposedPort = 80,

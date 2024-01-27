@@ -19,4 +19,14 @@ public static class Constants
     {
         public const string PreviewImageRegistry = "preview-images-registry";
     }
+    
+    public static class BuildServers
+    {
+        public const string AzurePipelines = "AzurePipelines";
+    }
+    
+    public static class GitProviders
+    {
+        public const string AzureRepos = "AzureRepos";
+    }
 }

@@ -4,16 +4,16 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PreviewEnvironments.Application.Extensions;
 using PreviewEnvironments.Application.Models;
-using PreviewEnvironments.Application.Models.AzureDevOps;
 using PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 using PreviewEnvironments.Application.Services.Abstractions;
 
 namespace PreviewEnvironments.Application.Services;
 
-internal sealed partial class AzureDevOpsService : IAzureDevOpsService
+internal sealed partial class AzureReposGitProvider : IGitProvider
 {
-    private readonly ILogger<AzureDevOpsService> _logger;
+    private readonly ILogger<AzureReposGitProvider> _logger;
+    private readonly IConfigurationManager _configurationManager;
     private readonly HttpClient _httpClient;
     private readonly ApplicationConfiguration _configuration;
     
@@ -34,26 +34,36 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
         Status = "closed",
     };
 
-    public AzureDevOpsService(
-        ILogger<AzureDevOpsService> logger,
+    public AzureReposGitProvider(
+        ILogger<AzureReposGitProvider> logger,
         IOptions<ApplicationConfiguration> options,
+        IConfigurationManager configurationManager,
         HttpClient httpClient)
     {
         _logger = logger;
         _httpClient = httpClient;
+        _configurationManager = configurationManager;
         _configuration = options.Value;
     }
     
     /// <inheritdoc />
-    public async Task PostPreviewAvailableMessageAsync(PreviewAvailableMessage message, CancellationToken cancellationToken = default)
+    public async Task PostPreviewAvailableMessageAsync(
+        string internalBuildId,
+        int pullRequestId,
+        Uri containerAddress,
+        CancellationToken cancellationToken = default)
     {
-        message.AccessToken = GetAccessToken();
-        
-        UriBuilder builder = new()
+        AzureRepos? configuration = _configurationManager.GetConfigurationByBuildId(internalBuildId)?.AzureRepos;
+
+        if (configuration is null)
         {
-            Host = message.Host,
-            Scheme = message.Scheme,
-            Path = $"{message.Organization}/{message.Project}/_apis/git/repositories/{message.RepositoryId}/pullRequests/{message.PullRequestNumber}/threads",
+            // TODO: Log error
+            return;
+        }
+        
+        UriBuilder builder = new(configuration.BaseAddress)
+        {
+            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/repositories/{configuration.RepositoryId}/pullRequests/{pullRequestId}/threads",
             Query = "api-version=7.0"
         };
 
@@ -64,14 +74,14 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
                 new Comment
                 {
                     CommentType = "system",
-                    Content = $"Preview environment available at [{message.PreviewEnvironmentAddress}]({message.PreviewEnvironmentAddress}).",
+                    Content = $"Preview environment available at [{containerAddress}]({containerAddress}).",
                 }
             ],
             Status = "closed",
         };
 
         using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.ToString())
-            .WithBasicAuthorization(message.AccessToken)
+            .WithBasicAuthorization(GetAccessToken(internalBuildId))
             .WithJsonBody(thread);
 
         using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
@@ -80,11 +90,11 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
         {
             _ = response.EnsureSuccessStatusCode();
 
-            Log.PostedPreviewAvailableMessage(_logger, message.PullRequestNumber);
+            Log.PostedPreviewAvailableMessage(_logger, pullRequestId);
         }
         catch (Exception ex)
         {
-            Log.PostedPreviewAvailableFailed(_logger, ex, message.PullRequestNumber);
+            Log.PostedPreviewAvailableFailed(_logger, ex, pullRequestId);
             
             string apiResponse =
                 await response.Content.ReadAsStringAsync(cancellationToken);
@@ -94,22 +104,27 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
     }
 
     /// <inheritdoc />
-    public async Task PostExpiredContainerMessageAsync(int pullRequestNumber, CancellationToken cancellationToken = default)
+    public async Task PostExpiredContainerMessageAsync(
+        string internalBuildId,
+        int pullRequestId,
+        CancellationToken cancellationToken = default)
     {
-        // https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-threads/create?tabs=HTTP
+        AzureRepos? configuration = _configurationManager.GetConfigurationByBuildId(internalBuildId)?.AzureRepos;
 
-        UriBuilder builder = new()
+        if (configuration is null)
         {
-            Host = _configuration.AzureDevOps.Host,
-            Scheme = _configuration.AzureDevOps.Scheme,
-            Path = $"{_configuration.AzureDevOps.Organization}/{_configuration.AzureDevOps.ProjectName}/_apis/git/repositories/{_configuration.AzureDevOps.RepositoryId}/pullRequests/{pullRequestNumber}/threads",
+            // TODO: Log error
+            return;
+        }
+
+        UriBuilder builder = new(configuration.BaseAddress)
+        {
+            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/repositories/{configuration.RepositoryId}/pullRequests/{pullRequestId}/threads",
             Query = "api-version=7.0"
         };
-
-        string accessToken = GetAccessToken();
         
         using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.Uri)
-            .WithBasicAuthorization(accessToken)
+            .WithBasicAuthorization(GetAccessToken(internalBuildId))
             .WithJsonBody(ExpiredContainerThread);
         
         using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
@@ -118,7 +133,7 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
         {
             _ = response.EnsureSuccessStatusCode();
             
-            Log.PostedExpiredContainerMessage(_logger, pullRequestNumber);
+            Log.PostedExpiredContainerMessage(_logger, pullRequestId);
         }
         catch (Exception ex)
         {
@@ -132,23 +147,31 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
     }
     
     /// <inheritdoc />
-    public async Task PostPullRequestStatusAsync(PullRequestStatusMessage message, CancellationToken cancellationToken = default)
+    public async Task PostPullRequestStatusAsync(
+        string internalBuildId,
+        int pullRequestId,
+        PullRequestStatusState state,
+        CancellationToken cancellationToken = default)
     {
-        message.AccessToken = GetAccessToken();
-        
-        UriBuilder builder = new()
+        AzureRepos? configuration = _configurationManager.GetConfigurationByBuildId(internalBuildId)?.AzureRepos;
+
+        if (configuration is null)
         {
-            Host = message.Host,
-            Scheme = message.Scheme,
-            Path = $"{message.Organization}/{message.Project}/_apis/git/repositories/{message.RepositoryId}/pullRequests/{message.PullRequestNumber}/statuses",
+            // TODO: Log error
+            return;
+        }
+        
+        UriBuilder builder = new(configuration.BaseAddress)
+        {
+            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/repositories/{configuration.RepositoryId}/pullRequests/{pullRequestId}/statuses",
             Query = "api-version=7.0",
         };
 
         PullRequestStatusRequest status = new()
         {
-            State = GetStatus(message.State),
-            Description = GetStatusDescription(message.State),
-            TargetUrl = message.BuildPipelineAddress,
+            State = GetStatus(state),
+            Description = GetStatusDescription(state),
+            TargetUrl = string.Empty,
             Context = new Context
             {
                 Genre = "preview-environments",
@@ -157,7 +180,7 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
         };
 
         using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.Uri)
-            .WithBasicAuthorization(message.AccessToken)
+            .WithBasicAuthorization(GetAccessToken(internalBuildId))
             .WithJsonBody(status);
 
         using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
@@ -166,7 +189,7 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
         {
             _ = response.EnsureSuccessStatusCode();
             
-            Log.PostedStatusSuccessfully(_logger, message.State);
+            Log.PostedStatusSuccessfully(_logger, state);
         }
         catch (Exception ex)
         {
@@ -180,20 +203,27 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
     }
 
     /// <inheritdoc />
-    public async Task<PullRequestResponse?> GetPullRequestById(GetPullRequest getPullRequest, CancellationToken cancellationToken = default)
+    public async Task<PullRequestResponse?> GetPullRequestById(
+        string internalBuildId,
+        int pullRequestId,
+        CancellationToken cancellationToken = default)
     {
-        getPullRequest.AccessToken = GetAccessToken();
+        AzureRepos? configuration = _configurationManager.GetConfigurationByBuildId(internalBuildId)?.AzureRepos;
 
-        UriBuilder builder = new()
+        if (configuration is null)
         {
-            Scheme = getPullRequest.Scheme,
-            Host = getPullRequest.Host,
-            Path = $"{getPullRequest.Organization}/{getPullRequest.Project}/_apis/git/pullrequests/{getPullRequest.PullRequestId}",
+            // TODO: Log error
+            return null;
+        }
+
+        UriBuilder builder = new(configuration.BaseAddress)
+        {
+            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/pullrequests/{pullRequestId}",
             Query = "api-version=7.0"
         };
 
         using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, builder.Uri)
-            .WithBasicAuthorization(getPullRequest.AccessToken);
+            .WithBasicAuthorization(GetAccessToken(internalBuildId));
 
         using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 
@@ -204,13 +234,13 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
             PullRequestResponse? pullRequest = await response.Content
                 .ReadFromJsonAsync<PullRequestResponse>(cancellationToken);
 
-            Log.GetPullRequestByIdSucceeded(_logger, getPullRequest.PullRequestId);
+            Log.GetPullRequestByIdSucceeded(_logger, pullRequestId);
 
             return pullRequest;
         }
         catch (Exception ex)
         {
-            Log.GetPullRequestByIdFailed(_logger, ex, getPullRequest.PullRequestId);
+            Log.GetPullRequestByIdFailed(_logger, ex, pullRequestId);
 
             string apiResponse =
                 await response.Content.ReadAsStringAsync(cancellationToken);
@@ -270,11 +300,15 @@ internal sealed partial class AzureDevOpsService : IAzureDevOpsService
     /// <exception cref="Exception">
     /// Throw then the access token could not be identified.
     /// </exception>
-    private string GetAccessToken()
+    private string GetAccessToken(string internalBuildId)
     {
+        AzureRepos? configuration = _configurationManager
+            .GetConfigurationByBuildId(internalBuildId)
+            ?.AzureRepos;
+        
         string? accessToken = EnvironmentHelper
             .GetAzAccessToken()
-            .WithFallback(_configuration.AzureDevOps.AzAccessToken);
+            .WithFallback(configuration?.PersonalAccessToken);
 
         if (string.IsNullOrWhiteSpace(accessToken))
         {

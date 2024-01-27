@@ -11,8 +11,8 @@ internal sealed partial class PreviewEnvironmentManager
         [LoggerMessage(1, LogLevel.Warning, "The application configuration was not deemed to be valid. Some parts of the application not may not work as expected.", EventName = nameof(InvalidApplicationConfiguration))]
         public static partial void InvalidApplicationConfiguration(ILogger logger);
         
-        [LoggerMessage(2, LogLevel.Error, "There were no available ports to start this container. Consider increasing the number of allowed ports for build definition {BuildDefinitionId}.", EventName = nameof(NoAvailablePorts))]
-        public static partial void NoAvailablePorts(ILogger logger, int buildDefinitionId);
+        [LoggerMessage(2, LogLevel.Error, "There were no available ports to start this container. Consider increasing the number of allowed ports for build configuration '{InternalBuildId}'.", EventName = nameof(NoAvailablePorts))]
+        public static partial void NoAvailablePorts(ILogger logger, string internalBuildId);
         
         [LoggerMessage(3, LogLevel.Debug, "Could not find a container linked to the pull request {PullRequestId}.", EventName = nameof(NoContainerLinkedToPr))]
         public static partial void NoContainerLinkedToPr(ILogger logger, int pullRequestId);
@@ -41,8 +41,8 @@ internal sealed partial class PreviewEnvironmentManager
         [LoggerMessage(11, LogLevel.Debug, "The build status '{BuildStatus}' is not supported. Expected the build status to be Succeeded.", EventName = nameof(InvalidBuildStatus))]
         public static partial void InvalidBuildStatus(ILogger logger, BuildStatus buildStatus);
         
-        [LoggerMessage(12, LogLevel.Debug, "The build definition {BuildDefinitionId} was not found in the list of supported build definitions.", EventName = nameof(BuildDefinitionNotFound))]
-        public static partial void BuildDefinitionNotFound(ILogger logger, int buildDefinitionId);
+        [LoggerMessage(12, LogLevel.Debug, "The preview environment configuration with id '{InternalBuildId}' was not found.", EventName = nameof(PreviewEnvironmentConfigurationNotFound))]
+        public static partial void PreviewEnvironmentConfigurationNotFound(ILogger logger, string internalBuildId);
         
         [LoggerMessage(13, LogLevel.Debug, "The pull request state '{PullRequestState}' is not supported. Expected Completed or Abandoned.", EventName = nameof(PullRequestUpdatedInvalidPullRequestState))]
         public static partial void PullRequestUpdatedInvalidPullRequestState(ILogger logger, PullRequestState pullRequestState);

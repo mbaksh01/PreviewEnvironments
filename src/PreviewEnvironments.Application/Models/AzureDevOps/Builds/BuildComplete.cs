@@ -6,9 +6,9 @@
 public sealed class BuildComplete
 {
     /// <summary>
-    /// Id of build definition.
+    /// Id used to identify a configuration file.
     /// </summary>
-    public required int BuildDefinitionId { get; set; }
+    public required string InternalBuildId { get; set; }
     
     /// <summary>
     /// Url to build.

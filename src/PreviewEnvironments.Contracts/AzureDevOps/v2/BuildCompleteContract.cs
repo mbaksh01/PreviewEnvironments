@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace PreviewEnvironments.API.Contracts.AzureDevOps.v2;
+namespace PreviewEnvironments.Contracts.AzureDevOps.v2;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
@@ -106,7 +106,7 @@ public partial class BCResource
     public long BuildNumberRevision { get; set; }
 
     [JsonPropertyName("project")]
-    public BCProject? Project { get; set; }
+    public BCProject Project { get; set; } = new();
 
     [JsonPropertyName("uri")]
     public string Uri { get; set; }
