@@ -22,7 +22,7 @@ public static class AzureDevOpsContractMapper
         {
             SourceBranch = contract.Resource.SourceBranch,
             BuildStatus = status,
-            PullRequestNumber = contract.Resource.TriggerInfo?.PrNumber ?? 0,
+            PullRequestId = contract.Resource.TriggerInfo?.PrNumber ?? 0,
             BuildUrl = contract.Resource.Links.Web.Href,
             InternalBuildId = IdHelper.GetAzurePipelinesContractId(contract)
         };

@@ -1,8 +1,9 @@
-﻿using PreviewEnvironments.API.Contracts.AzureDevOps.v1;
-using PreviewEnvironments.API.Contracts.AzureDevOps.v2;
-using PreviewEnvironments.API.Mappers;
+﻿using PreviewEnvironments.API.Mappers;
+using PreviewEnvironments.Application.Helpers;
 using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
+using PreviewEnvironments.Contracts.AzureDevOps.v1;
+using PreviewEnvironments.Contracts.AzureDevOps.v2;
 
 namespace PreviewEnvironments.API.Tests.Unit.Mappers;
 
@@ -55,9 +56,9 @@ public class AzureDevOpsContractMapperTests
         using (new AssertionScope())
         {
             model.BuildStatus.Should().Be(expectedStatus);
-            model.BuildDefinitionId.Should().Be(buildDefinitionId);
+            model.InternalBuildId.Should().Be(IdHelper.GetAzurePipelinesContractId(contract));
             model.SourceBranch.Should().Be(branchName);
-            model.PullRequestNumber.Should().Be(prNumber);
+            model.PullRequestId.Should().Be(prNumber);
             model.BuildUrl.Should().Be(buildUrl);
         }
     }

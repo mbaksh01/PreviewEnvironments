@@ -90,12 +90,12 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
         PullRequestResponse? pullRequest =
             await gitProvider.GetPullRequestById(
                 buildComplete.InternalBuildId,
-                buildComplete.PullRequestNumber,
+                buildComplete.PullRequestId,
                 cancellationToken);
         
         if (pullRequest is null)
         {
-            Log.PullRequestNotFound(_logger, buildComplete.PullRequestNumber);
+            Log.PullRequestNotFound(_logger, buildComplete.PullRequestId);
             return;
         }
         
@@ -109,7 +109,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
         {
             await gitProvider.PostPullRequestStatusAsync(
                 buildComplete.InternalBuildId,
-                buildComplete.PullRequestNumber,
+                buildComplete.PullRequestId,
                 PullRequestStatusState.Pending,
                 cancellationToken);
             
@@ -153,17 +153,17 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
                 existingContainer = _containers.Values.SingleOrDefault(
                     dc =>
                         dc.ImageName == $"{configuration.Deployment.ImageRegistry}/{configuration.Deployment.ImageName.ToLower()}"
-                        && dc.ImageTag == $"pr-{buildComplete.PullRequestNumber}"
+                        && dc.ImageTag == $"pr-{buildComplete.PullRequestId}"
                 );
             }
 
             if (existingContainer is null)
             {
-                Log.NoContainerLinkedToPr(_logger, buildComplete.PullRequestNumber);
+                Log.NoContainerLinkedToPr(_logger, buildComplete.PullRequestId);
                 
                 newContainer = await _dockerService.RunContainerAsync(
                     configuration.Deployment.ImageName,
-                    $"pr-{buildComplete.PullRequestNumber}",
+                    $"pr-{buildComplete.PullRequestId}",
                     buildComplete.InternalBuildId,
                     port,
                     configuration.Deployment.ImageRegistry,
@@ -172,7 +172,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
             }
             else
             {
-                Log.ContainerLinkedToPr(_logger, buildComplete.PullRequestNumber);
+                Log.ContainerLinkedToPr(_logger, buildComplete.PullRequestId);
                 
                 newContainer = await _dockerService.RestartContainerAsync(
                     existingContainer,
@@ -200,13 +200,13 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
             
             await gitProvider.PostPreviewAvailableMessageAsync(
                 buildComplete.InternalBuildId,
-                buildComplete.PullRequestNumber,
+                buildComplete.PullRequestId,
                 containerAddress,
                 cancellationToken);
 
             await gitProvider.PostPullRequestStatusAsync(
                 buildComplete.InternalBuildId,
-                buildComplete.PullRequestNumber,
+                buildComplete.PullRequestId,
                 PullRequestStatusState.Succeeded,
                 cancellationToken);
         }
@@ -216,7 +216,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
 
             await gitProvider.PostPullRequestStatusAsync(
                 buildComplete.InternalBuildId,
-                buildComplete.PullRequestNumber,
+                buildComplete.PullRequestId,
                 PullRequestStatusState.Failed,
                 cancellationToken);
         }

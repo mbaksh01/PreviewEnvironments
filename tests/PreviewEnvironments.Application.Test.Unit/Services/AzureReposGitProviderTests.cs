@@ -13,9 +13,10 @@ using PreviewEnvironments.Application.Test.Unit.TestHelpers;
 
 namespace PreviewEnvironments.Application.Test.Unit.Services;
 
-public class AzureDevOpsServiceTests
+public class AzureReposGitProviderTests
 {
     private const string DefaultAccessToken = "my-test-access-token";
+    private const string TestInternalBuildId = "test-internal-build-it";
     
     private readonly string _expectedAccessTokenHeaderValue =
         Convert.ToBase64String(Encoding.ASCII.GetBytes($":{DefaultAccessToken}"));
@@ -24,7 +25,7 @@ public class AzureDevOpsServiceTests
     public async Task PostPreviewAvailableMessageAsync_Should_Use_Correct_Http_Request_Message()
     {
         // Arrange
-        (IAzureDevOpsService sut, MockHttpMessageHandler messageHandler) =
+        (IGitProvider sut, MockHttpMessageHandler messageHandler) =
             GetSystemUnderTest();
 
         const string expectedScheme = "https";
@@ -36,19 +37,12 @@ public class AzureDevOpsServiceTests
 
         string expectedPath =
             $"/{expectedOrganization}/{expectedProject}/_apis/git/repositories/{expectedRepositoryId}/pullRequests/{expectedPullRequestNumber}/threads";
-        
-        PreviewAvailableMessage message = new()
-        {
-            Scheme = expectedScheme,
-            Host = expectedHost,
-            PullRequestNumber = expectedPullRequestNumber,
-            Organization = expectedOrganization,
-            Project = expectedProject,
-            RepositoryId = expectedRepositoryId
-        };
 
         // Act
-        await sut.PostPreviewAvailableMessageAsync(message);
+        await sut.PostPreviewAvailableMessageAsync(
+            TestInternalBuildId,
+            expectedPullRequestNumber,
+            new Uri("https://test.domain.com"));
 
         // Assert
         messageHandler.Messages.Should().HaveCount(1);
@@ -95,36 +89,34 @@ public class AzureDevOpsServiceTests
     public async Task PostPreviewAvailableMessageAsync_Should_Not_Throw_When_Status_Code_Does_Not_Indicate_Success()
     {
         // Arrange
-        (IAzureDevOpsService sut, _) =
+        (IGitProvider sut, _) =
             GetSystemUnderTest(statusCode: HttpStatusCode.InternalServerError);
 
         PreviewAvailableMessage message = new();
 
         // Act
-        Func<Task> action = () => sut.PostPreviewAvailableMessageAsync(message);
+        Func<Task> action = () => sut.PostPreviewAvailableMessageAsync(
+            TestInternalBuildId,
+            message.PullRequestNumber,
+            new Uri("https://test.domain.com"));
 
         // Assert
         await action.Should().NotThrowAsync();
     }
 
-    private static (IAzureDevOpsService, MockHttpMessageHandler) GetSystemUnderTest(
+    private static (IGitProvider, MockHttpMessageHandler) GetSystemUnderTest(
         string response = "",
         HttpStatusCode statusCode = HttpStatusCode.OK,
         ApplicationConfiguration? configuration = null)
     {
-        configuration ??= new ApplicationConfiguration
-        {
-            AzureDevOps = new AzureDevOpsConfiguration
-            { 
-                AzAccessToken = DefaultAccessToken,
-            }
-        };
+        configuration ??= new ApplicationConfiguration();
 
         MockHttpMessageHandler messageHandler = new(response, statusCode);
 
-        IAzureDevOpsService sut = new AzureDevOpsService(
-            Substitute.For<ILogger<AzureDevOpsService>>(),
+        IGitProvider sut = new AzureReposGitProvider(
+            Substitute.For<ILogger<AzureReposGitProvider>>(),
             Options.Create(configuration),
+            Substitute.For<IConfigurationManager>(),
             new HttpClient(messageHandler));
         
         return (sut, messageHandler);
