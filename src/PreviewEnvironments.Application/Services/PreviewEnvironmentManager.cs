@@ -316,10 +316,14 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
                 expiredContainer.ContainerId,
                 cancellationToken);
 
-            // TODO: Fix this
-            // await _gitProviderFactory.PostExpiredContainerMessageAsync(
-            //     expiredContainer.PullRequestId,
-            //     cancellationToken);
+            // TODO: Fix this by including the repo type in the docker container.
+            IGitProvider gitProvider =
+                _gitProviderFactory.CreateProvider(GitProvider.AzureRepos);
+            
+            await gitProvider.PostExpiredContainerMessageAsync(
+                expiredContainer.InternalBuildId,
+                expiredContainer.PullRequestId,
+                cancellationToken);
         }
     }
 

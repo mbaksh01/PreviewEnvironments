@@ -48,5 +48,5 @@ public sealed class DockerContainer
     /// <summary>
     /// Internal id of the build that triggered the creation of this container.
     /// </summary>
-    public string InternalBuildId { get; set; }
+    public string InternalBuildId { get; set; } = string.Empty;
 }
