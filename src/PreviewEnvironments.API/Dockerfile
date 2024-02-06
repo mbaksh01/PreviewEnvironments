@@ -8,6 +8,7 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["PreviewEnvironments.API/PreviewEnvironments.API.csproj", "PreviewEnvironments.API/"]
 COPY ["PreviewEnvironments.Application/PreviewEnvironments.Application.csproj", "PreviewEnvironments.Application/"]
+COPY ["PreviewEnvironments.Contracts/PreviewEnvironments.Contracts.csproj", "PreviewEnvironments.Contracts/"]
 RUN dotnet restore "PreviewEnvironments.API/PreviewEnvironments.API.csproj"
 COPY . .
 WORKDIR "/src/PreviewEnvironments.API"
