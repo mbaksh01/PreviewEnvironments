@@ -71,13 +71,20 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
             return;
         }
 
-        if (configuration.BuildServer is Constants.BuildServers.AzurePipelines)
+        string? internalBuildId = configuration.BuildServer switch
         {
-            _configurations.Add(
+            Constants.BuildServers.AzurePipelines =>
                 IdHelper.GetAzurePipelinesId(configuration.AzurePipelines!),
-                configuration);
-        }
 
-        Log.InvalidBuildServerConfiguration(_logger, path);
+            _ => null,
+        };
+
+        if (string.IsNullOrWhiteSpace(internalBuildId))
+        {
+            Log.InvalidBuildServerName(_logger, configuration.BuildServer, path);
+            return;
+        }
+        
+        _configurations.Add(internalBuildId, configuration);
     }
 }

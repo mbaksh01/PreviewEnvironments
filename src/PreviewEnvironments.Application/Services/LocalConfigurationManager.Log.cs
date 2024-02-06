@@ -9,7 +9,7 @@ internal partial class LocalConfigurationManager
         [LoggerMessage(1, LogLevel.Warning, "The configuration file found at path: '{ConfigurationFilePath}' was not formatted correctly.", EventName = nameof(InvalidConfigurationFileFormat))]
         public static partial void InvalidConfigurationFileFormat(ILogger logger, string configurationFilePath);
         
-        [LoggerMessage(2, LogLevel.Warning, "The build server configuration was not valid for configuration file: '{ConfigurationFilePath}'.", EventName = nameof(InvalidBuildServerConfiguration))]
-        public static partial void InvalidBuildServerConfiguration(ILogger logger, string configurationFilePath);
+        [LoggerMessage(2, LogLevel.Warning, "The build server name '{BuildServerName}' was found in '{ConfigurationFilePath}' but is not valid.", EventName = nameof(InvalidBuildServerName))]
+        public static partial void InvalidBuildServerName(ILogger logger, string buildServerName, string configurationFilePath);
     }
 }
