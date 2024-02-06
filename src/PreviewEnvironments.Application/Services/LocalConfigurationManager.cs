@@ -58,6 +58,12 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
 
     private async Task LoadConfiguration(string path, CancellationToken cancellationToken)
     {
+        if (File.Exists(path) is false)
+        {
+            Log.InvalidConfigurationFilePath(_logger, path);
+            return;
+        }
+        
         using StreamReader reader = new(stream: File.Open(path, FileMode.Open));
 
         string content = await reader.ReadToEndAsync(cancellationToken);

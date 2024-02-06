@@ -11,5 +11,8 @@ internal partial class LocalConfigurationManager
         
         [LoggerMessage(2, LogLevel.Warning, "The build server name '{BuildServerName}' was found in '{ConfigurationFilePath}' but is not valid.", EventName = nameof(InvalidBuildServerName))]
         public static partial void InvalidBuildServerName(ILogger logger, string buildServerName, string configurationFilePath);
+        
+        [LoggerMessage(3, LogLevel.Warning, "The configuration file path '{ConfigurationFilePath}' was not found.", EventName = nameof(InvalidConfigurationFilePath))]
+        public static partial void InvalidConfigurationFilePath(ILogger logger, string configurationFilePath);
     }
 }
