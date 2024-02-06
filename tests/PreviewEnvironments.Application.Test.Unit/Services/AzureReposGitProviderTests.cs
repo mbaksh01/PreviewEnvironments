@@ -16,10 +16,13 @@ namespace PreviewEnvironments.Application.Test.Unit.Services;
 public class AzureReposGitProviderTests
 {
     private const string DefaultAccessToken = "my-test-access-token";
-    private const string TestInternalBuildId = "test-internal-build-it";
+    private const string TestInternalBuildId = "test-internal-build-id";
     
     private readonly string _expectedAccessTokenHeaderValue =
         Convert.ToBase64String(Encoding.ASCII.GetBytes($":{DefaultAccessToken}"));
+
+    private readonly IConfigurationManager _configurationManager =
+        Substitute.For<IConfigurationManager>();
     
     [Fact]
     public async Task PostPreviewAvailableMessageAsync_Should_Use_Correct_Http_Request_Message()
@@ -34,6 +37,21 @@ public class AzureReposGitProviderTests
         const string expectedOrganization = "MyTestOrganization";
         const string expectedProject = "MyTestProject";
         Guid expectedRepositoryId = Guid.NewGuid();
+
+        _configurationManager
+            .GetConfigurationByBuildId(TestInternalBuildId)
+            .Returns(new PreviewEnvironmentConfiguration
+            {
+                GitProvider = Constants.GitProviders.AzureRepos,
+                AzureRepos = new AzureRepos
+                {
+                    OrganizationName = expectedOrganization,
+                    ProjectName = expectedProject,
+                    BaseAddress = new Uri($"{expectedScheme}://{expectedHost}"),
+                    RepositoryId = expectedRepositoryId,
+                    PersonalAccessToken = DefaultAccessToken
+                }
+            });
 
         string expectedPath =
             $"/{expectedOrganization}/{expectedProject}/_apis/git/repositories/{expectedRepositoryId}/pullRequests/{expectedPullRequestNumber}/threads";
@@ -104,7 +122,7 @@ public class AzureReposGitProviderTests
         await action.Should().NotThrowAsync();
     }
 
-    private static (IGitProvider, MockHttpMessageHandler) GetSystemUnderTest(
+    private (IGitProvider, MockHttpMessageHandler) GetSystemUnderTest(
         string response = "",
         HttpStatusCode statusCode = HttpStatusCode.OK,
         ApplicationConfiguration? configuration = null)
@@ -116,7 +134,7 @@ public class AzureReposGitProviderTests
         IGitProvider sut = new AzureReposGitProvider(
             Substitute.For<ILogger<AzureReposGitProvider>>(),
             Options.Create(configuration),
-            Substitute.For<IConfigurationManager>(),
+            _configurationManager,
             new HttpClient(messageHandler));
         
         return (sut, messageHandler);

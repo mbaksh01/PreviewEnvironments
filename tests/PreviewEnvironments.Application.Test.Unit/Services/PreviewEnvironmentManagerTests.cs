@@ -3,7 +3,6 @@ using FluentValidation.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PreviewEnvironments.Application.Models;
-using PreviewEnvironments.Application.Models.AzureDevOps;
 using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
 using PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
@@ -15,8 +14,10 @@ namespace PreviewEnvironments.Application.Test.Unit.Services;
 
 public class PreviewEnvironmentManagerTests
 {
-    private const string TestInternalBuildId = "test-internal-build-it";
-    
+    private const string TestInternalBuildId = "test-internal-build-id";
+    private const string DefaultContainerScheme = "https";
+    private const string DefaultContainerHost = "test.domain.com";
+
     private readonly IPreviewEnvironmentManager _sut;
     private readonly IGitProviderFactory _gitProviderFactory;
     private readonly IGitProvider _gitProvider;
@@ -33,7 +34,7 @@ public class PreviewEnvironmentManagerTests
         _options = Options.Create(new ApplicationConfiguration());
         _dockerService = Substitute.For<IDockerService>();
         _configurationManager = Substitute.For<IConfigurationManager>();
-        
+
         _sut = new PreviewEnvironmentManager(
             Substitute.For<ILogger<PreviewEnvironmentManager>>(),
             _validator,
@@ -104,7 +105,7 @@ public class PreviewEnvironmentManagerTests
                 Arg.Any<int>(),
                 Arg.Any<PullRequestStatusState>());
     }
-    
+
     [Fact]
     public async Task BuildComplete_Should_Return_Early_When_Supported_Build_Is_Not_Found()
     {
@@ -134,12 +135,12 @@ public class PreviewEnvironmentManagerTests
     {
         // Arrange
         BuildComplete buildComplete = GetValidBuildComplete();
-        
+
         _validator
             .Validate(Arg.Any<ApplicationConfiguration>())
             .Returns(new ValidationResult());
 
-        List<PullRequestStatusMessage> messages = [];
+        List<PullRequestStatusState> statusStates = [];
 
         _gitProvider
             .PostPullRequestStatusAsync(
@@ -147,11 +148,15 @@ public class PreviewEnvironmentManagerTests
                 buildComplete.PullRequestId,
                 Arg.Any<PullRequestStatusState>())
             .Returns(Task.CompletedTask)
-            .AndDoes(x => messages.Add(x.Arg<PullRequestStatusMessage>()));
-        
+            .AndDoes(x => statusStates.Add(x.Arg<PullRequestStatusState>()));
+
         _gitProvider
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
             .Returns(new PullRequestResponse { Status = "active" });
+
+        _configurationManager
+            .GetConfigurationByBuildId(TestInternalBuildId)
+            .Returns(GetValidEnvironmentConfiguration());
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
@@ -161,35 +166,16 @@ public class PreviewEnvironmentManagerTests
             .Received(2)
             .PostPullRequestStatusAsync(
                 TestInternalBuildId,
-                Arg.Any<int>(),
+                buildComplete.PullRequestId,
                 Arg.Any<PullRequestStatusState>());
 
-        messages.Should().HaveCount(2);
+        statusStates.Should().HaveCount(2);
 
-        PullRequestStatusMessage pendingMessage = messages[0];
+        PullRequestStatusState pendingState = statusStates[0];
+        pendingState.Should().Be(PullRequestStatusState.Pending);
 
-        using (new AssertionScope())
-        {
-            pendingMessage.PullRequestNumber.Should().Be(buildComplete.PullRequestId);
-            pendingMessage.BuildPipelineAddress.Should().Be(buildComplete.BuildUrl.ToString());
-            pendingMessage.State.Should().Be(PullRequestStatusState.Pending);
-        }
-        
-        PullRequestStatusMessage succeededMessage = messages[1];
-
-        using (new AssertionScope())
-        {
-            succeededMessage.PullRequestNumber.Should().Be(buildComplete.PullRequestId);
-            succeededMessage.BuildPipelineAddress.Should().Be(buildComplete.BuildUrl.ToString());
-            succeededMessage.State.Should().Be(PullRequestStatusState.Succeeded);
-            
-            succeededMessage
-                .Port
-                .Should()
-                .BeGreaterThanOrEqualTo(10_000)
-                .And
-                .BeLessThanOrEqualTo(60_000);
-        }
+        PullRequestStatusState succeededState = statusStates[1];
+        succeededState.Should().Be(PullRequestStatusState.Succeeded);
     }
 
     [Fact]
@@ -198,10 +184,19 @@ public class PreviewEnvironmentManagerTests
         // Arrange
         const int expectedPort = 7000;
         BuildComplete buildComplete = GetValidBuildComplete();
-        
+
         _validator
             .Validate(Arg.Any<ApplicationConfiguration>())
             .Returns(new ValidationResult());
+
+        PreviewEnvironmentConfiguration configuration =
+            GetValidEnvironmentConfiguration();
+
+        configuration.Deployment.AllowedDeploymentPorts = [expectedPort];
+
+        _configurationManager
+            .GetConfigurationByBuildId(TestInternalBuildId)
+            .Returns(configuration);
 
         int port = 0;
         
@@ -231,20 +226,29 @@ public class PreviewEnvironmentManagerTests
         // Assert
         port.Should().Be(expectedPort);
     }
-    
+
     [Fact]
     public async Task BuildComplete_Should_Use_Next_Available_Port_From_Allowed_Image_Ports()
     {
         // Arrange
         const int expectedPort = 7001;
         BuildComplete buildComplete = GetValidBuildComplete();
-        
+
         _validator
             .Validate(Arg.Any<ApplicationConfiguration>())
             .Returns(new ValidationResult());
+
+        PreviewEnvironmentConfiguration configuration =
+            GetValidEnvironmentConfiguration();
+
+        configuration.Deployment.AllowedDeploymentPorts = [7000, expectedPort];
         
+        _configurationManager
+            .GetConfigurationByBuildId(TestInternalBuildId)
+            .Returns(configuration);
+
         int port = 0;
-        
+
         _dockerService
             .RunContainerAsync(
                 Arg.Any<string>(),
@@ -262,11 +266,11 @@ public class PreviewEnvironmentManagerTests
                 InternalBuildId = buildComplete.InternalBuildId,
             })
             .AndDoes(x => port = x.ArgAt<int>(3));
-        
+
         _gitProvider
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
             .Returns(new PullRequestResponse { Status = "active" });
-        
+
         await _sut.BuildCompleteAsync(buildComplete);
 
         // Act
@@ -281,12 +285,12 @@ public class PreviewEnvironmentManagerTests
     {
         // Arrange
         BuildComplete buildComplete = GetValidBuildComplete();
-        
+
         _validator
             .Validate(Arg.Any<ApplicationConfiguration>())
             .Returns(new ValidationResult());
 
-        List<PullRequestStatusMessage> messages = [];
+        List<PullRequestStatusState> pullRequestStatusStates = [];
 
         _gitProvider
             .PostPullRequestStatusAsync(
@@ -294,8 +298,8 @@ public class PreviewEnvironmentManagerTests
                 buildComplete.PullRequestId,
                 Arg.Any<PullRequestStatusState>())
             .Returns(Task.CompletedTask)
-            .AndDoes(x => messages.Add(x.Arg<PullRequestStatusMessage>()));
-        
+            .AndDoes(x => pullRequestStatusStates.Add(x.Arg<PullRequestStatusState>()));
+
         _dockerService
             .RunContainerAsync(
                 Arg.Any<string>(),
@@ -312,11 +316,15 @@ public class PreviewEnvironmentManagerTests
                 Port = x.ArgAt<int>(3),
                 InternalBuildId = buildComplete.InternalBuildId,
             });
-        
+
         _gitProvider
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
             .Returns(new PullRequestResponse { Status = "active" });
-        
+
+        _configurationManager
+            .GetConfigurationByBuildId(TestInternalBuildId)
+            .Returns(GetValidEnvironmentConfiguration());
+
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
         await _sut.BuildCompleteAsync(buildComplete);
@@ -332,16 +340,11 @@ public class PreviewEnvironmentManagerTests
                 Arg.Any<string>(),
                 Arg.Any<int>());
 
-        messages.Should().HaveCount(4);
+        pullRequestStatusStates.Should().HaveCount(4);
 
-        PullRequestStatusMessage failedMessage = messages[3];
+        PullRequestStatusState failedStatus = pullRequestStatusStates[3];
 
-        using (new AssertionScope())
-        {
-            failedMessage.PullRequestNumber.Should().Be(buildComplete.PullRequestId);
-            failedMessage.BuildPipelineAddress.Should().Be(buildComplete.BuildUrl.ToString());
-            failedMessage.State.Should().Be(PullRequestStatusState.Failed);
-        }
+        failedStatus.Should().Be(PullRequestStatusState.Failed);
     }
 
     [Fact]
@@ -349,14 +352,18 @@ public class PreviewEnvironmentManagerTests
     {
         // Arrange
         BuildComplete buildComplete = GetValidBuildComplete();
-        
+
         _validator
             .Validate(Arg.Any<ApplicationConfiguration>())
             .Returns(new ValidationResult());
-        
+
         _gitProvider
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
             .Returns(new PullRequestResponse { Status = "active" });
+
+        _configurationManager
+            .GetConfigurationByBuildId(TestInternalBuildId)
+            .Returns(GetValidEnvironmentConfiguration());
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
@@ -378,7 +385,7 @@ public class PreviewEnvironmentManagerTests
     {
         // Arrange
         BuildComplete buildComplete = GetValidBuildComplete();
-        
+
         _validator
             .Validate(Arg.Any<ApplicationConfiguration>())
             .Returns(new ValidationResult());
@@ -399,10 +406,21 @@ public class PreviewEnvironmentManagerTests
                 InternalBuildId = x.ArgAt<string>(2),
                 Port = x.ArgAt<int>(3),
             });
-        
+
         _gitProvider
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
             .Returns(new PullRequestResponse { Status = "active" });
+
+        PreviewEnvironmentConfiguration configuration =
+            GetValidEnvironmentConfiguration();
+
+        // HACK: Restarting container fails when exactly 1 port in the allowed
+        // ports list.
+        configuration.Deployment.AllowedDeploymentPorts = Array.Empty<int>();
+
+        _configurationManager
+            .GetConfigurationByBuildId(TestInternalBuildId)
+            .Returns(configuration);
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
@@ -418,15 +436,15 @@ public class PreviewEnvironmentManagerTests
     }
 
     [Fact]
-    public async Task BuildComplete_Should_Correct_Environment_Address_When_Container_Started_Successfully()
+    public async Task BuildComplete_Should_Use_Deployment_Host_Address_When_Container_Started_Successfully()
     {
         // Arrange
         BuildComplete buildComplete = GetValidBuildComplete();
-        
+
         _validator
             .Validate(Arg.Any<ApplicationConfiguration>())
             .Returns(new ValidationResult());
-        
+
         _dockerService
             .RunContainerAsync(
                 Arg.Any<string>(),
@@ -448,13 +466,20 @@ public class PreviewEnvironmentManagerTests
             .PostPreviewAvailableMessageAsync(
                 TestInternalBuildId,
                 buildComplete.PullRequestId,
-                new Uri("https://test.domain.com"))
+                Arg.Any<Uri>())
             .Returns(Task.CompletedTask)
-            .AndDoes(x => containerAddress = x.Arg<Uri>());
+            .AndDoes(x => containerAddress = x.ArgAt<Uri>(2));
 
         _gitProvider
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
             .Returns(new PullRequestResponse { Status = "active" });
+
+        PreviewEnvironmentConfiguration configuration =
+            GetValidEnvironmentConfiguration();
+
+        _configurationManager
+            .GetConfigurationByBuildId(TestInternalBuildId)
+            .Returns(configuration);
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
@@ -466,9 +491,18 @@ public class PreviewEnvironmentManagerTests
                 TestInternalBuildId,
                 buildComplete.PullRequestId,
                 Arg.Any<Uri>());
-        
+
         containerAddress.Should().NotBeNull();
-        containerAddress.Should().Be(new Uri("https://test.domain.com"));
+
+        using (new AssertionScope())
+        {
+            containerAddress!.Scheme.Should().Be(DefaultContainerScheme);
+            containerAddress.Host.Should().Be(DefaultContainerHost);
+            
+            containerAddress.Port
+                .Should()
+                .Be(configuration.Deployment.AllowedDeploymentPorts.First());
+        }
     }
     
     [Fact]
@@ -482,7 +516,7 @@ public class PreviewEnvironmentManagerTests
             .Returns(new ValidationResult());
 
         int port = 0;
-        
+
         _dockerService
             .RunContainerAsync(
                 Arg.Any<string>(),
@@ -499,7 +533,7 @@ public class PreviewEnvironmentManagerTests
                 Port = x.ArgAt<int>(3)
             })
             .AndDoes(x => port = x.ArgAt<int>(3));
-        
+
         _dockerService
             .RestartContainerAsync(
                 Arg.Any<DockerContainer>(),
@@ -512,22 +546,26 @@ public class PreviewEnvironmentManagerTests
             })
             .AndDoes(x => port = x.Arg<DockerContainer>().Port);
 
-        PreviewAvailableMessage? message = null;
+        Uri? deploymentUri = null;
 
         _gitProvider
             .PostPreviewAvailableMessageAsync(
                 TestInternalBuildId,
                 buildComplete.PullRequestId,
-                new Uri("https://test.domain.com"))
+                Arg.Any<Uri>())
             .Returns(Task.CompletedTask)
-            .AndDoes(x => message = x.Arg<PreviewAvailableMessage>());
-        
+            .AndDoes(x => deploymentUri = x.Arg<Uri>());
+
         _gitProvider
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
             .Returns(new PullRequestResponse { Status = "active" });
 
+        _configurationManager
+            .GetConfigurationByBuildId(TestInternalBuildId)
+            .Returns(GetValidEnvironmentConfiguration());
+
         await _sut.BuildCompleteAsync(buildComplete);
-        
+
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
 
@@ -537,10 +575,10 @@ public class PreviewEnvironmentManagerTests
             .PostPreviewAvailableMessageAsync(
                 TestInternalBuildId,
                 buildComplete.PullRequestId,
-                new Uri("https://test.domain.com"));
-        
-        message.Should().NotBeNull();
-        message.Should().Be(new Uri("https://test.domain.com"));
+                new Uri($"https://test.domain.com:{port}"));
+
+        deploymentUri.Should().NotBeNull();
+        deploymentUri.Should().Be(new Uri($"https://test.domain.com:{port}"));
     }
 
     [Fact]
@@ -578,15 +616,15 @@ public class PreviewEnvironmentManagerTests
             .Received(0)
             .StopAndRemoveContainerAsync(Arg.Any<string>());
     }
-    
+
     [Fact]
     public async Task PullRequestUpdated_Should_Stop_And_Remove_The_Container()
     {
         // Arrange
         const string containerId = "containerId";
-        
+
         BuildComplete buildComplete = GetValidBuildComplete();
-        
+
         PullRequestUpdated pullRequestUpdated = new()
         {
             Id = buildComplete.PullRequestId,
@@ -596,7 +634,7 @@ public class PreviewEnvironmentManagerTests
         _validator
             .Validate(Arg.Any<ApplicationConfiguration>())
             .Returns(new ValidationResult());
-        
+
         _dockerService
             .RunContainerAsync(
                 Arg.Any<string>(),
@@ -612,13 +650,17 @@ public class PreviewEnvironmentManagerTests
                 ImageTag = x.ArgAt<string>(1),
                 PullRequestId = buildComplete.PullRequestId
             });
-        
+
         _gitProvider
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
-            .Returns(new PullRequestResponse { Status = "active" });
-        
+            .Returns(new PullRequestResponse { Status = "active"});
+
+        _configurationManager
+            .GetConfigurationByBuildId(TestInternalBuildId)
+            .Returns(GetValidEnvironmentConfiguration());
+
         await _sut.BuildCompleteAsync(buildComplete);
-        
+
         // Act
         await _sut.PullRequestUpdatedAsync(pullRequestUpdated);
 
@@ -640,17 +682,17 @@ public class PreviewEnvironmentManagerTests
             "containerId4",
             "containerId5",
         ];
-        
+
         const int expiredContainerCount = 5;
 
         int currentIndex = 0;
-        
+
         BuildComplete buildComplete = GetValidBuildComplete();
 
         _validator
             .Validate(Arg.Any<ApplicationConfiguration>())
             .Returns(new ValidationResult());
-        
+
         _dockerService
             .RunContainerAsync(
                 Arg.Any<string>(),
@@ -665,12 +707,17 @@ public class PreviewEnvironmentManagerTests
                 ImageName = ((char)Random.Shared.Next(65, 91)).ToString(),
                 ImageTag = ((char)Random.Shared.Next(65, 91)).ToString(),
                 PullRequestId = buildComplete.PullRequestId,
-                CreatedTime = DateTime.Now.AddMinutes(-1)
+                CreatedTime = DateTime.Now.AddMinutes(-1),
+                InternalBuildId = TestInternalBuildId
             });
-        
+
         _gitProvider
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
             .Returns(new PullRequestResponse { Status = "active" });
+
+        _configurationManager
+            .GetConfigurationByBuildId(TestInternalBuildId)
+            .Returns(GetValidEnvironmentConfiguration());
 
         for (int i = 0; i < expiredContainerCount; i++)
         {
@@ -731,10 +778,14 @@ public class PreviewEnvironmentManagerTests
                 ImageTag = ((char)Random.Shared.Next(65, 91)).ToString(),
                 PullRequestId = buildComplete.PullRequestId
             });
-        
+
         _gitProvider
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
             .Returns(new PullRequestResponse { Status = "active" });
+
+        _configurationManager
+            .GetConfigurationByBuildId(TestInternalBuildId)
+            .Returns(GetValidEnvironmentConfiguration());
 
         for (int i = 0; i < containerCount; i++)
         {
@@ -749,7 +800,7 @@ public class PreviewEnvironmentManagerTests
         await _dockerService
             .Received(containerCount)
             .StopAndRemoveContainerAsync(Arg.Is<string>(s => containerIds.Contains(s)));
-        
+
         _dockerService
             .Received(1)
             .Dispose();
@@ -764,6 +815,20 @@ public class PreviewEnvironmentManagerTests
             BuildStatus = BuildStatus.Succeeded,
             BuildUrl = new Uri("https://dev.azure.com"),
             PullRequestId = 1
+        };
+    }
+
+    private static PreviewEnvironmentConfiguration GetValidEnvironmentConfiguration()
+    {
+        return new PreviewEnvironmentConfiguration
+        {
+            GitProvider = Constants.GitProviders.AzureRepos,
+            Deployment = new Deployment
+            {
+                ContainerHostAddress =
+                    $"{DefaultContainerScheme}://{DefaultContainerHost}",
+                AllowedDeploymentPorts = [24302]
+            }
         };
     }
 }
