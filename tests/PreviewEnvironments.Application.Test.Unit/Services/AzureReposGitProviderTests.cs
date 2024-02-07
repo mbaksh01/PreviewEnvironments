@@ -36,7 +36,7 @@ public class AzureReposGitProviderTests
         const int expectedPullRequestNumber = 10;
         const string expectedOrganization = "MyTestOrganization";
         const string expectedProject = "MyTestProject";
-        Guid expectedRepositoryId = Guid.NewGuid();
+        const string expectedRepositoryName = "MyTestRepo";
 
         _configurationManager
             .GetConfigurationByBuildId(TestInternalBuildId)
@@ -48,13 +48,13 @@ public class AzureReposGitProviderTests
                     OrganizationName = expectedOrganization,
                     ProjectName = expectedProject,
                     BaseAddress = new Uri($"{expectedScheme}://{expectedHost}"),
-                    RepositoryId = expectedRepositoryId,
+                    RepositoryName = expectedRepositoryName,
                     PersonalAccessToken = DefaultAccessToken
                 }
             });
 
         string expectedPath =
-            $"/{expectedOrganization}/{expectedProject}/_apis/git/repositories/{expectedRepositoryId}/pullRequests/{expectedPullRequestNumber}/threads";
+            $"/{expectedOrganization}/{expectedProject}/_apis/git/repositories/{expectedRepositoryName}/pullRequests/{expectedPullRequestNumber}/threads";
 
         // Act
         await sut.PostPreviewAvailableMessageAsync(

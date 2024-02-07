@@ -16,6 +16,7 @@
   "azureRepos": {
     "organizationName": "RedevClients",
     "projectName": "ProRevise",
+    "repositoryName": "ProRevise",
     "personalAccessToken": ""
   },
   "buildServer": "AzurePipelines",

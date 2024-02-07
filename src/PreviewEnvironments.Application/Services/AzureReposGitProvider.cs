@@ -63,7 +63,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
         
         UriBuilder builder = new(configuration.BaseAddress)
         {
-            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/repositories/{configuration.RepositoryId}/pullRequests/{pullRequestId}/threads",
+            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/repositories/{configuration.RepositoryName}/pullRequests/{pullRequestId}/threads",
             Query = "api-version=7.0"
         };
 
@@ -119,7 +119,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
 
         UriBuilder builder = new(configuration.BaseAddress)
         {
-            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/repositories/{configuration.RepositoryId}/pullRequests/{pullRequestId}/threads",
+            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/repositories/{configuration.RepositoryName}/pullRequests/{pullRequestId}/threads",
             Query = "api-version=7.0"
         };
         
@@ -163,7 +163,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
         
         UriBuilder builder = new(configuration.BaseAddress)
         {
-            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/repositories/{configuration.RepositoryId}/pullRequests/{pullRequestId}/statuses",
+            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/repositories/{configuration.RepositoryName}/pullRequests/{pullRequestId}/statuses",
             Query = "api-version=7.0",
         };
 

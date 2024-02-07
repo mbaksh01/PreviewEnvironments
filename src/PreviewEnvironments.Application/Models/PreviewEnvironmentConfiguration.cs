@@ -116,10 +116,9 @@ public class AzureRepos
     public string ProjectName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Id of the current repository. This value is changed at runtime and
-    /// values supplied in the configuration will be ignored.
+    /// Name of the repository containing the pull requests.
     /// </summary>
-    public Guid RepositoryId { get; set; }
+    public string RepositoryName { get; set; } = string.Empty;
 
     /// <summary>
     /// Access token which will be used as authorization when calling the Azure
