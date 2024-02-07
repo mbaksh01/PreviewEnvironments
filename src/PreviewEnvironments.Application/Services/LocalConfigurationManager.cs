@@ -14,7 +14,8 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
     
     private static readonly JsonSerializerOptions DefaultSerializerOptions = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        
     };
     
     private Dictionary<string, PreviewEnvironmentConfiguration> _configurations = [];
@@ -80,7 +81,7 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
         string? internalBuildId = configuration.BuildServer switch
         {
             Constants.BuildServers.AzurePipelines =>
-                IdHelper.GetAzurePipelinesId(configuration.AzurePipelines!),
+                GetAzurePipelinesId(configuration),
 
             _ => null,
         };
@@ -92,5 +93,16 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
         }
         
         _configurations.Add(internalBuildId, configuration);
+    }
+
+    private string? GetAzurePipelinesId(PreviewEnvironmentConfiguration configuration)
+    {
+        if (configuration.AzurePipelines is null)
+        {
+            Log.MissingAzurePipelinesConfiguration(_logger);
+            return null;
+        }
+
+        return IdHelper.GetAzurePipelinesId(configuration.AzurePipelines);
     }
 }

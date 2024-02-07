@@ -28,4 +28,19 @@
     <ProjectReference Include="..\..\src\PreviewEnvironments.Application\PreviewEnvironments.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="TestData\Configurations\TestConfiguration1.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="TestData\Configurations\TestConfiguration2.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="TestData\Configurations\InvalidConfiguration1.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="TestData\Configurations\InvalidConfiguration2.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

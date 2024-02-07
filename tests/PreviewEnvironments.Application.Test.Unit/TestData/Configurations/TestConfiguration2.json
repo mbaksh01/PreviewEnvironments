@@ -1,0 +1,7 @@
+﻿{
+  "buildServer": "AzurePipelines",
+  "azurePipelines": {
+    "projectName": "TestProject2",
+    "buildDefinitionId": 2
+  }
+}

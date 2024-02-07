@@ -14,5 +14,8 @@ internal partial class LocalConfigurationManager
         
         [LoggerMessage(3, LogLevel.Warning, "The configuration file path '{ConfigurationFilePath}' was not found.", EventName = nameof(InvalidConfigurationFilePath))]
         public static partial void InvalidConfigurationFilePath(ILogger logger, string configurationFilePath);
+
+        [LoggerMessage(4, LogLevel.Warning, "The stated build provider was AzurePipelines but no matching configuration was found. Ensure that your configuration file contains the \"azurePipelines\" section.")]
+        public static partial void MissingAzurePipelinesConfiguration(ILogger logger);
     }
 }
