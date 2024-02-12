@@ -282,30 +282,36 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
     {
         Log.FindingAndStoppingContainers(_logger);
 
-        List<DockerContainer> expiredContainers = [];
+        IEnumerable<DockerContainer> runningContainers;
 
         lock (_containers)
         {
-            foreach (DockerContainer container in _containers.Values)
+            runningContainers = _containers
+                .Values
+                .Where(c => c is { Expired: false, CanExpire: true });
+        }
+
+        List<DockerContainer> expiredContainers = [];
+
+        foreach (DockerContainer container in runningContainers)
+        {
+            Deployment? deployment = _configurationManager
+                .GetConfigurationByBuildId(container.InternalBuildId)?.Deployment;
+
+            if (deployment is null)
             {
-                Deployment? deployment = _configurationManager
-                    .GetConfigurationByBuildId(container.InternalBuildId)?.Deployment;
-
-                if (deployment is null)
-                {
-                    continue;
-                }
-
-                TimeSpan timeout =
-                    TimeSpan.FromSeconds(deployment.ContainerTimeoutSeconds);
-
-                if (container.CreatedTime + timeout >= DateTimeOffset.Now)
-                {
-                    continue;
-                }
-
-                expiredContainers.Add(container);
+                continue;
             }
+
+            TimeSpan timeout =
+                TimeSpan.FromSeconds(deployment.ContainerTimeoutSeconds);
+
+            if (container.CreatedTime + timeout >= DateTimeOffset.Now)
+            {
+                continue;
+            }
+
+            expiredContainers.Add(container);
         }
 
         Log.FoundContainersToExpire(_logger, expiredContainers.Count);

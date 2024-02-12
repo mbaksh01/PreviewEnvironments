@@ -671,7 +671,7 @@ public class PreviewEnvironmentManagerTests
     }
 
     [Fact]
-    public async Task ExpireContainersAsync_Should_Stop_All_Expired_Containers()
+    public async Task ExpireContainersAsync_Should_Stop_All_Containers_Which_Have_Timed_Out()
     {
         // Arrange
         string[] containerIds =
@@ -724,6 +724,82 @@ public class PreviewEnvironmentManagerTests
             currentIndex = i;
             await _sut.BuildCompleteAsync(buildComplete);
         }
+
+        // Act
+        await _sut.ExpireContainersAsync();
+
+        // Assert
+        await _dockerService
+            .Received(expiredContainerCount)
+            .StopContainerAsync(Arg.Is<string>(s => containerIds.Contains(s)));
+
+        await _gitProvider
+            .Received(expiredContainerCount)
+            .PostExpiredContainerMessageAsync(
+                TestInternalBuildId,
+                buildComplete.PullRequestId);
+    }
+    
+    [Fact]
+    public async Task ExpireContainersAsync_Should_Stop_Only_Running_Containers()
+    {
+        // Arrange
+        string[] containerIds =
+        [
+            "containerId1",
+            "containerId2",
+            "containerId3",
+            "containerId4",
+            "containerId5",
+        ];
+
+        const int expiredContainerCount = 5;
+
+        int currentIndex = 0;
+
+        BuildComplete buildComplete = GetValidBuildComplete();
+
+        _validator
+            .Validate(Arg.Any<ApplicationConfiguration>())
+            .Returns(new ValidationResult());
+
+        _dockerService
+            .RunContainerAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                buildComplete.InternalBuildId,
+                Arg.Any<int>(),
+                Arg.Any<string>(),
+                Arg.Any<int>())
+            .Returns(x => new DockerContainer
+            {
+                ContainerId = containerIds[currentIndex],
+                ImageName = ((char)Random.Shared.Next(65, 91)).ToString(),
+                ImageTag = ((char)Random.Shared.Next(65, 91)).ToString(),
+                PullRequestId = buildComplete.PullRequestId,
+                CreatedTime = DateTime.Now.AddMinutes(-1),
+                InternalBuildId = TestInternalBuildId
+            });
+
+        _dockerService
+            .StopContainerAsync(Arg.Is<string>(s => containerIds.Contains(s)))
+            .Returns(true);
+
+        _gitProvider
+            .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
+            .Returns(new PullRequestResponse { Status = "active" });
+
+        _configurationManager
+            .GetConfigurationByBuildId(TestInternalBuildId)
+            .Returns(GetValidEnvironmentConfiguration());
+
+        for (int i = 0; i < expiredContainerCount; i++)
+        {
+            currentIndex = i;
+            await _sut.BuildCompleteAsync(buildComplete);
+        }
+        
+        await _sut.ExpireContainersAsync();
 
         // Act
         await _sut.ExpireContainersAsync();
