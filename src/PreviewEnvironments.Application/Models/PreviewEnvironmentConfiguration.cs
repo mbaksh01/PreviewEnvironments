@@ -134,7 +134,7 @@ public class AzureRepos
 /// <summary>
 /// Model containing information about Azure Pipelines.
 /// </summary>
-public class AzurePipelines : IBuildPipeline
+public class AzurePipelines
 {
     /// <summary>
     /// Name of the project containing the pipeline which will trigger the
@@ -146,14 +146,4 @@ public class AzurePipelines : IBuildPipeline
     /// Build definition id of the pipeline which will trigger the webhook.
     /// </summary>
     public int BuildDefinitionId { get; set; }
-
-    public string GetId()
-    {
-        return $"{ProjectName}-{BuildDefinitionId}";
-    }
-}
-
-public interface IBuildPipeline
-{
-    string GetId();
 }
