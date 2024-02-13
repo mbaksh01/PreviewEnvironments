@@ -11,7 +11,7 @@ public class LocalConfigurationManagerTests
 {
     private const string ConfigurationFolder = "TestData/Configurations";
     
-    private readonly IConfigurationManager _configurationManager;
+    private readonly IConfigurationManager _sut;
 
     public LocalConfigurationManagerTests()
     {
@@ -20,7 +20,7 @@ public class LocalConfigurationManagerTests
             ConfigurationFolder = ConfigurationFolder
         };
         
-        _configurationManager = new LocalConfigurationManager(
+        _sut = new LocalConfigurationManager(
             Substitute.For<ILogger<LocalConfigurationManager>>(),
             Options.Create(configuration));
     }
@@ -42,14 +42,14 @@ public class LocalConfigurationManagerTests
         });
 
         // Act
-        await _configurationManager.LoadConfigurationsAsync();
+        await _sut.LoadConfigurationsAsync();
 
         // Assert
         PreviewEnvironmentConfiguration? configuration1 =
-            _configurationManager.GetConfigurationByBuildId(internalId1);
+            _sut.GetConfigurationByBuildId(internalId1);
 
         PreviewEnvironmentConfiguration? configuration2 =
-            _configurationManager.GetConfigurationByBuildId(internalId2);
+            _sut.GetConfigurationByBuildId(internalId2);
 
         configuration1.Should().NotBeNull();
         configuration2.Should().NotBeNull();
