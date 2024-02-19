@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using FluentValidation;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PreviewEnvironments.Application.Helpers;
 using PreviewEnvironments.Application.Models;
@@ -22,7 +23,8 @@ public class LocalConfigurationManagerTests
         
         _sut = new LocalConfigurationManager(
             Substitute.For<ILogger<LocalConfigurationManager>>(),
-            Options.Create(configuration));
+            Options.Create(configuration),
+            Substitute.For<IValidator<PreviewEnvironmentConfiguration>>());
     }
 
     [Fact]

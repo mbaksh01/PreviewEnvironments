@@ -17,5 +17,14 @@ internal partial class LocalConfigurationManager
 
         [LoggerMessage(4, LogLevel.Warning, "The stated build provider was AzurePipelines but no matching configuration was found. Ensure that your configuration file contains the \"azurePipelines\" section.")]
         public static partial void MissingAzurePipelinesConfiguration(ILogger logger);
+        
+        [LoggerMessage(5, LogLevel.Warning, "Validation for configuration file path '{ConfigurationFilePath}' failed.", EventName = nameof(InvalidConfigurationFileValues))]
+        public static partial void InvalidConfigurationFileValues(ILogger logger, string configurationFilePath);
+
+        [LoggerMessage(6, LogLevel.Warning, "=> PropertyName: {PropertyName}. Error Message: {ErrorMessage}", EventName = nameof(ValidationError))]
+        public static partial void ValidationError(ILogger logger, string propertyName, string errorMessage);
+
+        [LoggerMessage(7, LogLevel.Warning, "Removed tracking of configuration file '{ConfigurationFilePath}'.", EventName = nameof(InvalidConfigurationFileNoLongerTracked))]
+        public static partial void InvalidConfigurationFileNoLongerTracked(ILogger logger, string configurationFilePath);
     }
 }

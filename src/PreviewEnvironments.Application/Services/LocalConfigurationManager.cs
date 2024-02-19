@@ -1,4 +1,6 @@
 ﻿using System.Text.Json;
+using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PreviewEnvironments.Application.Helpers;
@@ -10,21 +12,23 @@ namespace PreviewEnvironments.Application.Services;
 internal sealed partial class LocalConfigurationManager : IConfigurationManager
 {
     private readonly ILogger<LocalConfigurationManager> _logger;
+    private readonly IValidator<PreviewEnvironmentConfiguration> _validator;
     private readonly string _configurationFolder;
     
     private static readonly JsonSerializerOptions DefaultSerializerOptions = new()
     {
         PropertyNameCaseInsensitive = true,
-        
     };
     
-    private Dictionary<string, PreviewEnvironmentConfiguration> _configurations = [];
+    private Dictionary<string, PreviewEnvironmentConfigurationWithPath> _configurations = [];
 
     public LocalConfigurationManager(
         ILogger<LocalConfigurationManager> logger,
-        IOptions<ApplicationConfiguration> options)
+        IOptions<ApplicationConfiguration> options,
+        IValidator<PreviewEnvironmentConfiguration> validator)
     {
         _logger = logger;
+        _validator = validator;
         _configurationFolder = options.Value.ConfigurationFolder;
     }
 
@@ -44,7 +48,26 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
 
     public void ValidateConfigurations()
     {
-        throw new NotImplementedException();
+        foreach (KeyValuePair<string, PreviewEnvironmentConfigurationWithPath> kvp in _configurations)
+        {
+            (PreviewEnvironmentConfiguration configuration, string path) =
+                kvp.Value;
+            
+            ValidationResult result = _validator.Validate(configuration);
+
+            if (result.IsValid)
+            {
+                continue;
+            }
+
+            Log.InvalidConfigurationFileValues(_logger, path);
+            
+            DisplayErrors(result.Errors);
+
+            _configurations.Remove(kvp.Key);
+            
+            Log.InvalidConfigurationFileNoLongerTracked(_logger, path);
+        }
     }
 
     public PreviewEnvironmentConfiguration? GetConfigurationByBuildId(
@@ -52,9 +75,9 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
     {
         _ = _configurations.TryGetValue(
             buildCompleteInternalBuildId,
-            out PreviewEnvironmentConfiguration? configuration);
+            out PreviewEnvironmentConfigurationWithPath? value);
 
-        return configuration;
+        return value?.Configuration;
     }
 
     private async Task LoadConfiguration(string path, CancellationToken cancellationToken)
@@ -92,7 +115,9 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
             return;
         }
         
-        _configurations.Add(internalBuildId, configuration);
+        _configurations.Add(
+            internalBuildId,
+            new PreviewEnvironmentConfigurationWithPath(configuration, path));
     }
 
     private string? GetAzurePipelinesId(PreviewEnvironmentConfiguration configuration)
@@ -105,4 +130,19 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
 
         return IdHelper.GetAzurePipelinesId(configuration.AzurePipelines);
     }
+    
+    private void DisplayErrors(List<ValidationFailure> resultErrors)
+    {
+        foreach (ValidationFailure error in resultErrors)
+        {
+            Log.ValidationError(
+                _logger,
+                error.PropertyName,
+                error.ErrorMessage);
+        }
+    }
 }
+
+internal record PreviewEnvironmentConfigurationWithPath(
+    PreviewEnvironmentConfiguration Configuration,
+    string Path);

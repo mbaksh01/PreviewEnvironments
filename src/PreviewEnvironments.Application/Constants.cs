@@ -23,10 +23,20 @@ public static class Constants
     public static class BuildServers
     {
         public const string AzurePipelines = "AzurePipelines";
+
+        public static readonly string[] AllBuildServers =
+        [
+            AzurePipelines,
+        ];
     }
     
     public static class GitProviders
     {
         public const string AzureRepos = "AzureRepos";
+        
+        public static readonly string[] AllGitProviders =
+        [
+            AzureRepos,
+        ];
     }
 }

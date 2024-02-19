@@ -42,7 +42,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
     public async Task InitialiseAsync(CancellationToken cancellationToken = default)
     {
         await _configurationManager.LoadConfigurationsAsync(cancellationToken);
-        // _configurationManager.ValidateConfigurations();
+        _configurationManager.ValidateConfigurations();
         await _dockerService.InitialiseAsync(cancellationToken);
     }
     

@@ -9,12 +9,12 @@ public class PreviewEnvironmentConfigurationValidator
     public PreviewEnvironmentConfigurationValidator()
     {
         RuleFor(c => c.GitProvider)
-            .NotEmpty()
-            .NotEqual("Unknown");
+            .Must(x => Constants.GitProviders.AllGitProviders.Contains(x))
+            .WithMessage($"{nameof(PreviewEnvironmentConfiguration.GitProvider)} must be one of the following values: {string.Join(", ", Constants.GitProviders.AllGitProviders)}.");
 
         RuleFor(c => c.BuildServer)
-            .NotEmpty()
-            .NotEqual("Unknown");
+            .Must(x => Constants.BuildServers.AllBuildServers.Contains(x))
+            .WithMessage($"{nameof(PreviewEnvironmentConfiguration.BuildServer)} must be one of the following values: {string.Join(", ", Constants.BuildServers.AllBuildServers)}.");
 
         RuleFor(c => c.Deployment)
             .NotNull();

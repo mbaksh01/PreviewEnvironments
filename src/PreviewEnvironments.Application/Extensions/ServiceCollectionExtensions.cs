@@ -25,6 +25,7 @@ public static class ServiceCollectionExtensions
             .AddSingleton<IConfigurationManager, LocalConfigurationManager>()
             .AddSingleton<HttpClient>()
             .AddTransient<IValidator<ApplicationConfiguration>, ApplicationConfigurationValidator>()
+            .AddTransient<IValidator<PreviewEnvironmentConfiguration>, PreviewEnvironmentConfigurationValidator>()
             .AddTransient<IGitProviderFactory, GitProviderFactory>()
             .AddKeyedTransient<IGitProvider, AzureReposGitProvider>(Constants.GitProviders.AzureRepos)
             .AddTransient<IDockerService, DockerService>();
