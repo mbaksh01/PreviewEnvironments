@@ -7,7 +7,7 @@ namespace PreviewEnvironments.Application.Test.Unit.Validators;
 
 public class ApplicationConfigurationValidatorTests
 {
-    private readonly IValidator<ApplicationConfiguration> _validator =
+    private readonly IValidator<ApplicationConfiguration> _sut =
         new ApplicationConfigurationValidator();
 
     [Fact]
@@ -17,7 +17,7 @@ public class ApplicationConfigurationValidatorTests
         ApplicationConfiguration configuration = GetValidConfiguration();
 
         // Act
-        ValidationResult result = _validator.Validate(configuration);
+        ValidationResult result = _sut.Validate(configuration);
 
         // Assert
         result.IsValid.Should().BeTrue();
@@ -32,7 +32,7 @@ public class ApplicationConfigurationValidatorTests
         configuration.ContainerTimeoutIntervalSeconds = -5;
 
         // Act
-        ValidationResult result = _validator.Validate(configuration);
+        ValidationResult result = _sut.Validate(configuration);
 
         // Assert
         result.IsValid.Should().BeFalse();
