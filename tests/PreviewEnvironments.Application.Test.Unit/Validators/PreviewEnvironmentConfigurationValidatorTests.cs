@@ -29,7 +29,7 @@ public class PreviewEnvironmentConfigurationValidatorTests
             result.Errors.FirstOrDefault(e => e.PropertyName is nameof(PreviewEnvironmentConfiguration.GitProvider));
 
         error.Should().NotBeNull();
-        error!.ErrorMessage.Should().ContainAll("not", "empty");
+        error!.ErrorMessage.Should().ContainAll(Constants.GitProviders.AllGitProviders);
     }
     
     [Fact]
@@ -51,7 +51,7 @@ public class PreviewEnvironmentConfigurationValidatorTests
             result.Errors.FirstOrDefault(e => e.PropertyName is nameof(PreviewEnvironmentConfiguration.GitProvider));
 
         error.Should().NotBeNull();
-        error!.ErrorMessage.Should().ContainAll("not", "Unknown");
+        error!.ErrorMessage.Should().ContainAll(Constants.GitProviders.AllGitProviders);
     }
     
     [Fact]
@@ -73,7 +73,7 @@ public class PreviewEnvironmentConfigurationValidatorTests
             result.Errors.FirstOrDefault(e => e.PropertyName is nameof(PreviewEnvironmentConfiguration.BuildServer));
 
         error.Should().NotBeNull();
-        error!.ErrorMessage.Should().ContainAll("not", "empty");
+        error!.ErrorMessage.Should().ContainAll(Constants.BuildServers.AllBuildServers);
     }
     
     [Fact]
@@ -95,7 +95,7 @@ public class PreviewEnvironmentConfigurationValidatorTests
             result.Errors.FirstOrDefault(e => e.PropertyName is nameof(PreviewEnvironmentConfiguration.BuildServer));
 
         error.Should().NotBeNull();
-        error!.ErrorMessage.Should().ContainAll("not", "Unknown");
+        error!.ErrorMessage.Should().ContainAll(Constants.BuildServers.AllBuildServers);
     }
     
     [Fact]
