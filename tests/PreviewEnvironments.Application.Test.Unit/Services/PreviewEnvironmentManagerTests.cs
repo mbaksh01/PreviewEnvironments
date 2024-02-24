@@ -25,6 +25,7 @@ public class PreviewEnvironmentManagerTests
     private readonly IOptions<ApplicationConfiguration> _options;
     private readonly IDockerService _dockerService;
     private readonly IConfigurationManager _configurationManager;
+    private readonly IContainerTracker _containers;
 
     public PreviewEnvironmentManagerTests()
     {
@@ -34,6 +35,7 @@ public class PreviewEnvironmentManagerTests
         _options = Options.Create(new ApplicationConfiguration());
         _dockerService = Substitute.For<IDockerService>();
         _configurationManager = Substitute.For<IConfigurationManager>();
+        _containers = Substitute.For<IContainerTracker>();
 
         _sut = new PreviewEnvironmentManager(
             Substitute.For<ILogger<PreviewEnvironmentManager>>(),
@@ -41,7 +43,8 @@ public class PreviewEnvironmentManagerTests
             _options,
             _gitProviderFactory,
             _dockerService,
-            _configurationManager);
+            _configurationManager,
+            _containers);
 
         _gitProviderFactory
             .CreateProvider(Arg.Any<GitProvider>())
@@ -271,7 +274,17 @@ public class PreviewEnvironmentManagerTests
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
             .Returns(new PullRequestResponse { Status = "active" });
 
-        await _sut.BuildCompleteAsync(buildComplete);
+        _containers
+            .Where(Arg.Any<Predicate<DockerContainer>>())
+            .Returns([
+                new DockerContainer
+                {
+                    ContainerId = string.Empty,
+                    ImageName = string.Empty,
+                    ImageTag = string.Empty,
+                    Port = configuration.Deployment.AllowedDeploymentPorts[0],
+                }
+            ]);
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
@@ -321,28 +334,32 @@ public class PreviewEnvironmentManagerTests
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
             .Returns(new PullRequestResponse { Status = "active" });
 
+        PreviewEnvironmentConfiguration configuration =
+            GetValidEnvironmentConfiguration();
+        
         _configurationManager
             .GetConfigurationByBuildId(TestInternalBuildId)
-            .Returns(GetValidEnvironmentConfiguration());
+            .Returns(configuration);
+
+        _containers
+            .Where(Arg.Any<Predicate<DockerContainer>>())
+            .Returns([
+                new DockerContainer
+                {
+                    ContainerId = "",
+                    ImageName = "",
+                    ImageTag = "",
+                    Port = configuration.Deployment.AllowedDeploymentPorts[0]
+                }
+            ]);
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
-        await _sut.BuildCompleteAsync(buildComplete);
 
         // Assert
-        await _dockerService
-            .Received(1)
-            .RunContainerAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                buildComplete.InternalBuildId,
-                Arg.Any<int>(),
-                Arg.Any<string>(),
-                Arg.Any<int>());
+        pullRequestStatusStates.Should().HaveCount(2);
 
-        pullRequestStatusStates.Should().HaveCount(4);
-
-        PullRequestStatusState failedStatus = pullRequestStatusStates[3];
+        PullRequestStatusState failedStatus = pullRequestStatusStates[1];
 
         failedStatus.Should().Be(PullRequestStatusState.Failed);
     }
@@ -414,16 +431,24 @@ public class PreviewEnvironmentManagerTests
         PreviewEnvironmentConfiguration configuration =
             GetValidEnvironmentConfiguration();
 
-        // HACK: Restarting container fails when exactly 1 port in the allowed
-        // ports list.
-        configuration.Deployment.AllowedDeploymentPorts = Array.Empty<int>();
+        // HACK: Restarting container fails when exactly 1 port is in the
+        // allowed ports list.
+        // configuration.Deployment.AllowedDeploymentPorts = Array.Empty<int>();
 
         _configurationManager
             .GetConfigurationByBuildId(TestInternalBuildId)
             .Returns(configuration);
 
+        _containers
+            .SingleOrDefault(Arg.Any<Predicate<DockerContainer>>())
+            .Returns(new DockerContainer
+            {
+                ContainerId = string.Empty,
+                ImageName = string.Empty,
+                ImageTag = string.Empty,
+            });
+
         // Act
-        await _sut.BuildCompleteAsync(buildComplete);
         await _sut.BuildCompleteAsync(buildComplete);
 
         // Assert
@@ -623,43 +648,20 @@ public class PreviewEnvironmentManagerTests
         // Arrange
         const string containerId = "containerId";
 
-        BuildComplete buildComplete = GetValidBuildComplete();
-
         PullRequestUpdated pullRequestUpdated = new()
         {
-            Id = buildComplete.PullRequestId,
+            Id = 1,
             State = PullRequestState.Completed
         };
 
-        _validator
-            .Validate(Arg.Any<ApplicationConfiguration>())
-            .Returns(new ValidationResult());
-
-        _dockerService
-            .RunContainerAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                buildComplete.InternalBuildId,
-                Arg.Any<int>(),
-                Arg.Any<string>(),
-                Arg.Any<int>())
-            .Returns(x => new DockerContainer
+        _containers
+            .SingleOrDefault(Arg.Any<Predicate<DockerContainer>>())
+            .Returns(new DockerContainer
             {
                 ContainerId = containerId,
-                ImageName = $"{x.ArgAt<string>(4)}/{x.ArgAt<string>(0)}",
-                ImageTag = x.ArgAt<string>(1),
-                PullRequestId = buildComplete.PullRequestId
+                ImageName = string.Empty,
+                ImageTag = string.Empty
             });
-
-        _gitProvider
-            .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
-            .Returns(new PullRequestResponse { Status = "active"});
-
-        _configurationManager
-            .GetConfigurationByBuildId(TestInternalBuildId)
-            .Returns(GetValidEnvironmentConfiguration());
-
-        await _sut.BuildCompleteAsync(buildComplete);
 
         // Act
         await _sut.PullRequestUpdatedAsync(pullRequestUpdated);
@@ -683,47 +685,26 @@ public class PreviewEnvironmentManagerTests
             "containerId5",
         ];
 
-        const int expiredContainerCount = 5;
-
-        int currentIndex = 0;
+        const int expiredContainerCount = 4;
 
         BuildComplete buildComplete = GetValidBuildComplete();
-
-        _validator
-            .Validate(Arg.Any<ApplicationConfiguration>())
-            .Returns(new ValidationResult());
-
-        _dockerService
-            .RunContainerAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                buildComplete.InternalBuildId,
-                Arg.Any<int>(),
-                Arg.Any<string>(),
-                Arg.Any<int>())
-            .Returns(x => new DockerContainer
-            {
-                ContainerId = containerIds[currentIndex],
-                ImageName = ((char)Random.Shared.Next(65, 91)).ToString(),
-                ImageTag = ((char)Random.Shared.Next(65, 91)).ToString(),
-                PullRequestId = buildComplete.PullRequestId,
-                CreatedTime = DateTime.Now.AddMinutes(-1),
-                InternalBuildId = TestInternalBuildId
-            });
-
-        _gitProvider
-            .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
-            .Returns(new PullRequestResponse { Status = "active" });
 
         _configurationManager
             .GetConfigurationByBuildId(TestInternalBuildId)
             .Returns(GetValidEnvironmentConfiguration());
 
-        for (int i = 0; i < expiredContainerCount; i++)
-        {
-            currentIndex = i;
-            await _sut.BuildCompleteAsync(buildComplete);
-        }
+        _containers
+            .Where(Arg.Any<Predicate<DockerContainer>>())
+            .Returns(Enumerable.Range(0, containerIds.Length).Select(i =>
+                new DockerContainer
+                {
+                    ContainerId = $"containerId{i + 1}",
+                    ImageName = string.Empty,
+                    ImageTag = string.Empty,
+                    InternalBuildId = TestInternalBuildId,
+                    CreatedTime = DateTime.Now.AddMinutes(-i),
+                    PullRequestId = buildComplete.PullRequestId,
+                }));
 
         // Act
         await _sut.ExpireContainersAsync();
@@ -744,76 +725,28 @@ public class PreviewEnvironmentManagerTests
     public async Task ExpireContainersAsync_Should_Stop_Only_Running_Containers()
     {
         // Arrange
-        string[] containerIds =
-        [
-            "containerId1",
-            "containerId2",
-            "containerId3",
-            "containerId4",
-            "containerId5",
-        ];
-
-        const int expiredContainerCount = 5;
-
-        int currentIndex = 0;
-
-        BuildComplete buildComplete = GetValidBuildComplete();
-
-        _validator
-            .Validate(Arg.Any<ApplicationConfiguration>())
-            .Returns(new ValidationResult());
-
-        _dockerService
-            .RunContainerAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                buildComplete.InternalBuildId,
-                Arg.Any<int>(),
-                Arg.Any<string>(),
-                Arg.Any<int>())
-            .Returns(x => new DockerContainer
-            {
-                ContainerId = containerIds[currentIndex],
-                ImageName = ((char)Random.Shared.Next(65, 91)).ToString(),
-                ImageTag = ((char)Random.Shared.Next(65, 91)).ToString(),
-                PullRequestId = buildComplete.PullRequestId,
-                CreatedTime = DateTime.Now.AddMinutes(-1),
-                InternalBuildId = TestInternalBuildId
-            });
-
-        _dockerService
-            .StopContainerAsync(Arg.Is<string>(s => containerIds.Contains(s)))
-            .Returns(true);
-
-        _gitProvider
-            .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
-            .Returns(new PullRequestResponse { Status = "active" });
-
-        _configurationManager
-            .GetConfigurationByBuildId(TestInternalBuildId)
-            .Returns(GetValidEnvironmentConfiguration());
-
-        for (int i = 0; i < expiredContainerCount; i++)
-        {
-            currentIndex = i;
-            await _sut.BuildCompleteAsync(buildComplete);
-        }
+        Predicate<DockerContainer>? predicate = null;
         
-        await _sut.ExpireContainersAsync();
+        _containers
+            .Where(Arg.Any<Predicate<DockerContainer>>())
+            .Returns(Enumerable.Empty<DockerContainer>())
+            .AndDoes(x => predicate = x.Arg<Predicate<DockerContainer>>());
+
+        IEnumerable<DockerContainer> containers = Enumerable.Range(0, 6).Select(i =>
+            new DockerContainer
+            {
+                ContainerId = string.Empty,
+                ImageName = string.Empty,
+                ImageTag = string.Empty,
+                Expired = i % 2 == 1,
+            });
 
         // Act
         await _sut.ExpireContainersAsync();
 
         // Assert
-        await _dockerService
-            .Received(expiredContainerCount)
-            .StopContainerAsync(Arg.Is<string>(s => containerIds.Contains(s)));
-
-        await _gitProvider
-            .Received(expiredContainerCount)
-            .PostExpiredContainerMessageAsync(
-                TestInternalBuildId,
-                buildComplete.PullRequestId);
+        predicate.Should().NotBeNull();
+        containers.Where(predicate!.Invoke).Should().HaveCount(3);
     }
 
     [Fact]
@@ -831,43 +764,9 @@ public class PreviewEnvironmentManagerTests
 
         const int containerCount = 5;
 
-        int currentIndex = 0;
-
-        BuildComplete buildComplete = GetValidBuildComplete();
-
-        _validator
-            .Validate(Arg.Any<ApplicationConfiguration>())
-            .Returns(new ValidationResult());
-
-        _dockerService
-            .RunContainerAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                buildComplete.InternalBuildId,
-                Arg.Any<int>(),
-                Arg.Any<string>(),
-                Arg.Any<int>())
-            .Returns(x => new DockerContainer
-            {
-                ContainerId = containerIds[currentIndex],
-                ImageName = ((char)Random.Shared.Next(65, 91)).ToString(),
-                ImageTag = ((char)Random.Shared.Next(65, 91)).ToString(),
-                PullRequestId = buildComplete.PullRequestId
-            });
-
-        _gitProvider
-            .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
-            .Returns(new PullRequestResponse { Status = "active" });
-
-        _configurationManager
-            .GetConfigurationByBuildId(TestInternalBuildId)
-            .Returns(GetValidEnvironmentConfiguration());
-
-        for (int i = 0; i < containerCount; i++)
-        {
-            currentIndex = i;
-            await _sut.BuildCompleteAsync(buildComplete);
-        }
+        _containers
+            .GetKeys()
+            .Returns(containerIds);
 
         // Act
         await _sut.DisposeAsync();
@@ -903,7 +802,8 @@ public class PreviewEnvironmentManagerTests
             {
                 ContainerHostAddress =
                     $"{DefaultContainerScheme}://{DefaultContainerHost}",
-                AllowedDeploymentPorts = [24302]
+                AllowedDeploymentPorts = [24302],
+                ContainerTimeoutSeconds = 60
             }
         };
     }

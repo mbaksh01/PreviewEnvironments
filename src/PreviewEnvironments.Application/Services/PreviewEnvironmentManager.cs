@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -19,8 +18,8 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
     private readonly IGitProviderFactory _gitProviderFactory;
     private readonly IDockerService _dockerService;
     private readonly IConfigurationManager _configurationManager;
+    private readonly IContainerTracker _containers;
     private readonly ApplicationConfiguration _configuration;
-    private readonly ConcurrentDictionary<string, DockerContainer> _containers;
     
     public PreviewEnvironmentManager(
         ILogger<PreviewEnvironmentManager> logger,
@@ -28,15 +27,16 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
         IOptions<ApplicationConfiguration> configuration,
         IGitProviderFactory gitProviderFactory,
         IDockerService dockerService,
-        IConfigurationManager configurationManager)
+        IConfigurationManager configurationManager,
+        IContainerTracker containers)
     {
         _logger = logger;
         _validator = validator;
         _gitProviderFactory = gitProviderFactory;
         _dockerService = dockerService;
         _configurationManager = configurationManager;
+        _containers = containers;
         _configuration = configuration.Value;
-        _containers = new ConcurrentDictionary<string, DockerContainer>();
     }
 
     public async Task InitialiseAsync(CancellationToken cancellationToken = default)
@@ -123,14 +123,10 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
             {
                 int[] takenPorts;
                 
-                lock (_containers)
-                {
-                    takenPorts = _containers
-                        .Values
-                        .Where(c => c.InternalBuildId == buildComplete.InternalBuildId)
-                        .Select(c => c.Port)
-                        .ToArray();
-                }
+                takenPorts = _containers
+                    .Where(c => c.InternalBuildId == buildComplete.InternalBuildId)
+                    .Select(c => c.Port)
+                    .ToArray();
             
                 port = configuration
                     .Deployment
@@ -143,19 +139,15 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
                     throw new Exception("No free port found to deploy container.");
                 }
             }
-            
-            DockerContainer? existingContainer;
-            DockerContainer? newContainer;
 
-            lock (_containers)
-            {
-                // ASSUMPTION: Assuming that the tag is the pr number with 'pr-' prefixed.
-                existingContainer = _containers.Values.SingleOrDefault(
-                    dc =>
-                        dc.ImageName == $"{configuration.Deployment.ImageRegistry}/{configuration.Deployment.ImageName.ToLower()}"
-                        && dc.ImageTag == $"pr-{buildComplete.PullRequestId}"
-                );
-            }
+            // ASSUMPTION: Assuming that the tag is the pr number with 'pr-' prefixed.
+            DockerContainer? existingContainer = _containers.SingleOrDefault(
+                dc =>
+                    dc.ImageName == $"{configuration.Deployment.ImageRegistry}/{configuration.Deployment.ImageName.ToLower()}"
+                    && dc.ImageTag == $"pr-{buildComplete.PullRequestId}"
+            );
+            
+            DockerContainer? newContainer;
 
             if (existingContainer is null)
             {
@@ -182,17 +174,14 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
                 port = existingContainer.Port;
             }
 
-            lock (_containers)
+            if (existingContainer is not null)
             {
-                if (existingContainer is not null)
-                {
-                    _containers.Remove(existingContainer.ContainerId, out _);
-                }
-                
-                if (newContainer is not null)
-                {
-                    _containers.TryAdd(newContainer.ContainerId, newContainer);
-                }
+                _ = _containers.Remove(existingContainer.ContainerId);
+            }
+            
+            if (newContainer is not null)
+            {
+                _containers.Add(newContainer.ContainerId, newContainer);
             }
 
             Uri containerAddress = new(
@@ -245,12 +234,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
         
         int pullRequestId = pullRequestUpdated.Id;
 
-        string? containerId;
-
-        lock (_containers)
-        {
-            containerId = _containers.Values.SingleOrDefault(c => c.PullRequestId == pullRequestId)?.ContainerId;
-        }
+        string? containerId = _containers.SingleOrDefault(c => c.PullRequestId == pullRequestId)?.ContainerId;
 
         if (string.IsNullOrWhiteSpace(containerId))
         {
@@ -269,10 +253,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
             return;
         }
 
-        lock (_containers)
-        {
-            _containers.Remove(containerId, out _);
-        }
+        _ = _containers.Remove(containerId);
 
         Log.PreviewEnvironmentClosed(_logger, pullRequestId);
     }
@@ -282,14 +263,8 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
     {
         Log.FindingAndStoppingContainers(_logger);
 
-        IEnumerable<DockerContainer> runningContainers;
-
-        lock (_containers)
-        {
-            runningContainers = _containers
-                .Values
-                .Where(c => c is { Expired: false, CanExpire: true });
-        }
+        IEnumerable<DockerContainer> runningContainers = _containers
+            .Where(c => c is { Expired: false, CanExpire: true });
 
         List<DockerContainer> expiredContainers = [];
 
@@ -356,12 +331,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
 
     public async ValueTask DisposeAsync()
     {
-        ICollection<string> containerIds;
-        
-        lock (_containers)
-        {
-            containerIds = _containers.Keys;
-        }
+        ICollection<string> containerIds = _containers.GetKeys();
         
         foreach (string containerId in containerIds)
         {

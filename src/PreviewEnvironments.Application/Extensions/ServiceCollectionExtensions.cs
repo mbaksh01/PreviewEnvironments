@@ -21,6 +21,7 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration)
     {
         _ = services
+            .AddSingleton<IContainerTracker, ContainerTracker>()
             .AddSingleton<IPreviewEnvironmentManager, PreviewEnvironmentManager>()
             .AddSingleton<IConfigurationManager, LocalConfigurationManager>()
             .AddSingleton<HttpClient>()
