@@ -9,7 +9,7 @@
       10003,
       10004
     ],
-    "containerTimeoutSeconds": 600,
+    "containerTimeoutSeconds": 86400,
     "createContainerRetryCount": 3
   },
   "gitProvider": "AzureRepos",
