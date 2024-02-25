@@ -2,6 +2,8 @@
 
 namespace PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
 
+#nullable disable
+
 internal sealed class PullRequestResponse
 {
     public Repository Repository { get; set; }
