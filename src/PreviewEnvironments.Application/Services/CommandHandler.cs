@@ -1,4 +1,5 @@
 ﻿using CommandLine;
+using Microsoft.Extensions.Logging;
 using PreviewEnvironments.Application.Extensions;
 using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Models.Commands;
@@ -7,19 +8,22 @@ using PreviewEnvironments.Application.Services.Abstractions;
 
 namespace PreviewEnvironments.Application.Services;
 
-internal sealed class CommandHandler : ICommandHandler
+internal sealed partial class CommandHandler : ICommandHandler
 {
+    private readonly ILogger<CommandHandler> _logger;
     private readonly IDockerService _dockerService;
     private readonly IContainerTracker _containerTracker;
     private readonly IGitProviderFactory _gitProviderFactory;
     private readonly IConfigurationManager _configurationManager;
 
     public CommandHandler(
+        ILogger<CommandHandler> logger,
         IDockerService dockerService,
         IContainerTracker containerTracker,
         IGitProviderFactory gitProviderFactory,
         IConfigurationManager configurationManager)
     {
+        _logger = logger;
         _dockerService = dockerService;
         _containerTracker = containerTracker;
         _gitProviderFactory = gitProviderFactory;
@@ -38,20 +42,20 @@ internal sealed class CommandHandler : ICommandHandler
         ParserResult<RestartCommand>? command =
             Parser.Default.ParseArguments<RestartCommand>(args);
 
-        string result = await command.MapResult(
+        await command.MapResult(
             restartCommand => RestartAsync(metadata, cancellationToken),
-            _ => Task.FromResult(""));
+            _ => Task.CompletedTask);
     }
 
-    private async Task<string> RestartAsync(CommandMetadata metadata, CancellationToken cancellationToken)
+    private async Task RestartAsync(CommandMetadata metadata, CancellationToken cancellationToken)
     {
         DockerContainer? existingContainer = _containerTracker.SingleOrDefault(c =>
             c.PullRequestId == metadata.PullRequestId);
 
         if (existingContainer is null)
         {
-            // TODO: Log error.
-            return "";
+            Log.ContainerNotFound(_logger, metadata.PullRequestId);
+            return;
         }
 
         DockerContainer? newContainer =
@@ -61,8 +65,8 @@ internal sealed class CommandHandler : ICommandHandler
 
         if (newContainer is null)
         {
-            // TODO: Log error.
-            return "";
+            Log.FailedToStartContainer(_logger, metadata.PullRequestId);
+            return;
         }
 
         _containerTracker.Remove(existingContainer.ContainerId);
@@ -79,8 +83,8 @@ internal sealed class CommandHandler : ICommandHandler
 
         if (configuration is null)
         {
-            // TODO: Log error.
-            return "";
+            Log.ConfigurationNotFound(_logger, newContainer.InternalBuildId);
+            return;
         }
         
         Uri address =
@@ -91,7 +95,5 @@ internal sealed class CommandHandler : ICommandHandler
             metadata.PullRequestId,
             address,
             cancellationToken);
-        
-        return "";
     }
 }
