@@ -57,7 +57,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
 
         if (configuration is null)
         {
-            // TODO: Log error
+            Log.ConfigurationNotFound(_logger, internalBuildId);
             return;
         }
         
@@ -113,7 +113,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
 
         if (configuration is null)
         {
-            // TODO: Log error
+            Log.ConfigurationNotFound(_logger, internalBuildId);
             return;
         }
 
@@ -157,7 +157,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
 
         if (configuration is null)
         {
-            // TODO: Log error
+            Log.ConfigurationNotFound(_logger, internalBuildId);
             return;
         }
         
@@ -212,7 +212,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
 
         if (configuration is null)
         {
-            // TODO: Log error
+            Log.ConfigurationNotFound(_logger, internalBuildId);
             return null;
         }
 

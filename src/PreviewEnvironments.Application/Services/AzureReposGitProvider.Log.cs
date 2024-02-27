@@ -30,5 +30,8 @@ internal sealed partial class AzureReposGitProvider
         
         [LoggerMessage(8, LogLevel.Debug, "Successfully got the pull request for pull request {PullRequestId}.", EventName = nameof(GetPullRequestByIdSucceeded))]
         public static partial void GetPullRequestByIdSucceeded(ILogger logger, int pullRequestId);
+
+        [LoggerMessage(9, LogLevel.Warning, "Failed to determine the configuration file linked to internal build id: '{InternalBuildId}'.", EventName = nameof(ConfigurationNotFound))]
+        public static partial void ConfigurationNotFound(ILogger logger, string internalBuildId);
     }
 }
