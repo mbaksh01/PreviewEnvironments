@@ -29,7 +29,8 @@ public static class ServiceCollectionExtensions
             .AddTransient<IValidator<PreviewEnvironmentConfiguration>, PreviewEnvironmentConfigurationValidator>()
             .AddTransient<IGitProviderFactory, GitProviderFactory>()
             .AddKeyedTransient<IGitProvider, AzureReposGitProvider>(Constants.GitProviders.AzureRepos)
-            .AddTransient<IDockerService, DockerService>();
+            .AddTransient<IDockerService, DockerService>()
+            .AddTransient<ICommandHandler, CommandHandler>();
         
         _ = services.Configure<ApplicationConfiguration>(options =>
         {
