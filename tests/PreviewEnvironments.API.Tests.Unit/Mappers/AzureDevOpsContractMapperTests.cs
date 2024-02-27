@@ -2,6 +2,7 @@
 using PreviewEnvironments.Application.Helpers;
 using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
+using PreviewEnvironments.Application.Models.Commands;
 using PreviewEnvironments.Contracts.AzureDevOps.v1;
 using PreviewEnvironments.Contracts.AzureDevOps.v2;
 
@@ -93,6 +94,36 @@ public class AzureDevOpsContractMapperTests
         {
             model.Id.Should().Be(pullRequestId);
             model.State.Should().Be(expectedState);
+        }
+    }
+
+    [Fact]
+    public void PullRequestCommentedOnContract_ToMetadata_Should_Map_Correctly()
+    {
+        // Arrange
+        const int pullRequestId = 1;
+        
+        PullRequestCommentedOnContract contract = new()
+        {
+            Resource = new PRCOResource
+            {
+                PullRequest = new PRCOPullRequest
+                {
+                    PullRequestId = pullRequestId
+                }
+            },
+        };
+
+        // Act
+        CommandMetadata metadata = contract.ToMetadata();
+
+        // Assert
+        metadata.Should().NotBeNull();
+
+        using (new AssertionScope())
+        {
+            metadata.PullRequestId.Should().Be(pullRequestId);
+            metadata.GitProvider.Should().Be(Application.Constants.GitProviders.AzureRepos);
         }
     }
 }
