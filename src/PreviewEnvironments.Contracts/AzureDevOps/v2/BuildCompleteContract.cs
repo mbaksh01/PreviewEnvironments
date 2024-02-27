@@ -2,8 +2,6 @@
 
 namespace PreviewEnvironments.Contracts.AzureDevOps.v2;
 
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-
 public partial class BuildCompleteContract
 {
     [JsonPropertyName("subscriptionId")]
@@ -382,5 +380,3 @@ public partial class BCAccount
     [JsonPropertyName("baseUrl")]
     public Uri BaseUrl { get; set; }
 }
-
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.

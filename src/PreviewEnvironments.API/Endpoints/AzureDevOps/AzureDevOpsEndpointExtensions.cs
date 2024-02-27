@@ -6,6 +6,7 @@ public static class AzureDevOpsEndpointExtensions
     {
         return app
             .MapBuildComplete()
-            .MapPullRequestUpdated();
+            .MapPullRequestUpdated()
+            .MapPullRequestCommentOn();
     }
 }

@@ -9,6 +9,8 @@ public static class Constants
             public const string BuildComplete = "/vstfs/buildComplete";
 
             public const string PullRequestUpdated = "/vstfs/pullRequestUpdated";
+
+            public const string PullRequestCommentOn = "/vstfs/pullRequestCommentedOn";
         }
         
         public static class Meta

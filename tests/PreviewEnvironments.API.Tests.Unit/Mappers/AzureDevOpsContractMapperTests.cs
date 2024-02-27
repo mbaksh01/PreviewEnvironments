@@ -56,7 +56,7 @@ public class AzureDevOpsContractMapperTests
         using (new AssertionScope())
         {
             model.BuildStatus.Should().Be(expectedStatus);
-            model.InternalBuildId.Should().Be(IdHelper.GetAzurePipelinesContractId(contract));
+            model.InternalBuildId.Should().Be(IdHelper.GetAzurePipelinesId(contract));
             model.SourceBranch.Should().Be(branchName);
             model.PullRequestId.Should().Be(prNumber);
             model.BuildUrl.Should().Be(buildUrl);

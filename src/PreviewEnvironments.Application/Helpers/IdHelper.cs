@@ -10,7 +10,7 @@ public static class IdHelper
         return $"{pipeline.ProjectName}-{pipeline.BuildDefinitionId}";
     }
     
-    public static string GetAzurePipelinesContractId(BuildCompleteContract contract)
+    public static string GetAzurePipelinesId(BuildCompleteContract contract)
     {
         return $"{contract.Resource.Project.Name}-{contract.Resource.Definition.Id}";
     }

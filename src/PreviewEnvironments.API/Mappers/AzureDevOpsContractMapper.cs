@@ -4,6 +4,7 @@ using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 using System.Diagnostics;
 using PreviewEnvironments.Application.Helpers;
+using PreviewEnvironments.Application.Models.Commands;
 
 namespace PreviewEnvironments.API.Mappers;
 
@@ -24,7 +25,7 @@ public static class AzureDevOpsContractMapper
             BuildStatus = status,
             PullRequestId = contract.Resource.TriggerInfo?.PrNumber ?? 0,
             BuildUrl = contract.Resource.Links.Web.Href,
-            InternalBuildId = IdHelper.GetAzurePipelinesContractId(contract)
+            InternalBuildId = IdHelper.GetAzurePipelinesId(contract)
         };
     }
 
@@ -42,6 +43,15 @@ public static class AzureDevOpsContractMapper
         {
             Id = contract.Resource.PullRequestId,
             State = state,
+        };
+    }
+
+    public static CommandMetadata ToMetadata(this PullRequestCommentedOnContract contract)
+    {
+        return new CommandMetadata
+        {
+            PullRequestId = contract.Resource.PullRequest.PullRequestId,
+            GitProvider = Application.Constants.GitProviders.AzureRepos,
         };
     }
 }
