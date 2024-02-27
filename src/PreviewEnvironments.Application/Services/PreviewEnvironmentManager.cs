@@ -2,6 +2,7 @@
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using PreviewEnvironments.Application.Extensions;
 using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
 using PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
@@ -85,7 +86,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
         }
 
         IGitProvider gitProvider = _gitProviderFactory.CreateProvider(
-            GetGitProviderFromString(configuration.GitProvider));
+            configuration.GitProvider.GetGitProviderFromString());
         
         PullRequestResponse? pullRequest =
             await gitProvider.GetPullRequestById(
@@ -316,16 +317,6 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
             "abandoned" => PullRequestState.Abandoned,
             "completed" => PullRequestState.Completed,
             _ => throw new UnreachableException()
-        };
-    }
-
-    private static GitProvider GetGitProviderFromString(string provider)
-    {
-        return provider switch
-        {
-            Constants.GitProviders.AzureRepos => GitProvider.AzureRepos,
-            _ => throw new NotSupportedException(
-                $"The git provider '{provider}' is not supported.")
         };
     }
 

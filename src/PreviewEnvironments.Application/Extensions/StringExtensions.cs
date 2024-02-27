@@ -1,4 +1,6 @@
-﻿namespace PreviewEnvironments.Application.Extensions;
+﻿using PreviewEnvironments.Application.Services;
+
+namespace PreviewEnvironments.Application.Extensions;
 
 public static class StringExtensions
 {
@@ -23,5 +25,15 @@ public static class StringExtensions
         }
 
         return fallback;
+    }
+    
+    public static GitProvider GetGitProviderFromString(this string provider)
+    {
+        return provider switch
+        {
+            Constants.GitProviders.AzureRepos => GitProvider.AzureRepos,
+            _ => throw new NotSupportedException(
+                $"The git provider '{provider}' is not supported.")
+        };
     }
 }
