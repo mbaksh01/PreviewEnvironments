@@ -1,4 +1,5 @@
-﻿using PreviewEnvironments.Application.Models.Commands;
+﻿using Microsoft.Extensions.Logging;
+using PreviewEnvironments.Application.Models.Commands;
 using PreviewEnvironments.Application.Models.Docker;
 using PreviewEnvironments.Application.Services;
 using PreviewEnvironments.Application.Services.Abstractions;
@@ -22,6 +23,7 @@ public class CommandHandlerTests
         _configurationManager = Substitute.For<IConfigurationManager>();
         
         _sut = new CommandHandler(
+            Substitute.For<ILogger<CommandHandler>>(),
             _dockerService,
             _containerTracker,
             _gitProviderFactory,
