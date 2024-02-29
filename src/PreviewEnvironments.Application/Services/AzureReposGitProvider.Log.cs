@@ -33,5 +33,11 @@ internal sealed partial class AzureReposGitProvider
 
         [LoggerMessage(9, LogLevel.Warning, "Failed to determine the configuration file linked to internal build id: '{InternalBuildId}'.", EventName = nameof(ConfigurationNotFound))]
         public static partial void ConfigurationNotFound(ILogger logger, string internalBuildId);
+
+        [LoggerMessage(10, LogLevel.Debug, "Successfully got the current iteration id ({IterationId}) for pull request {PullRequestId}.", EventName = nameof(GetPullRequestIterationSucceeded))]
+        public static partial void GetPullRequestIterationSucceeded(ILogger logger, int iterationId, int pullRequestId);
+
+        [LoggerMessage(11, LogLevel.Debug, "Failed to determine the iteration id for pull request {PullRequestId}.", EventName = nameof(GetPullRequestIterationFailed))]
+        public static partial void GetPullRequestIterationFailed(ILogger logger, Exception exception, int pullRequestId);
     }
 }

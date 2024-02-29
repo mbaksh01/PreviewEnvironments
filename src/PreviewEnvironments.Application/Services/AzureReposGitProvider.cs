@@ -160,6 +160,12 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
             Log.ConfigurationNotFound(_logger, internalBuildId);
             return;
         }
+
+        int iterationId = await GetIterationId(
+            configuration,
+            pullRequestId,
+            internalBuildId,
+            cancellationToken);
         
         UriBuilder builder = new(configuration.BaseAddress)
         {
@@ -177,8 +183,9 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
                 Genre = "preview-environments",
                 Name = "deployment-status"
             },
+            IterationId = iterationId,
         };
-
+    
         using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.Uri)
             .WithBasicAuthorization(GetAccessToken(internalBuildId))
             .WithJsonBody(status);
@@ -248,6 +255,66 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
             Log.AzureDevOpsApiResponseError(_logger, apiResponse);
 
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Gets the current iteration for the pull request.
+    /// </summary>
+    /// <param name="configuration">
+    /// Configuration containing values used to create Azure DevOps URL.
+    /// </param>
+    /// <param name="pullRequestId">Id of the pull request to check.</param>
+    /// <param name="internalBuildId">Id of the current build.</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns>The current iteration of the pull request.</returns>
+    /// <remarks>
+    /// When an exception is thrown or an error occurs, 1 is returned as the
+    /// iteration id.
+    /// </remarks>
+    private async Task<int> GetIterationId(
+        AzureRepos configuration,
+        int pullRequestId,
+        string internalBuildId,
+        CancellationToken cancellationToken)
+    {
+        UriBuilder builder = new(configuration.BaseAddress)
+        {
+            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/repositories/{configuration.RepositoryName}/pullRequests/{pullRequestId}/iterations",
+            Query = "api-version=7.0"
+        };
+        
+        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, builder.Uri)
+            .WithBasicAuthorization(GetAccessToken(internalBuildId));
+
+        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+
+        try
+        {
+            _ = response.EnsureSuccessStatusCode();
+
+            PullRequestIterationsResponse? pullRequest = await response.Content
+                .ReadFromJsonAsync<PullRequestIterationsResponse>(cancellationToken);
+
+            if (pullRequest is null)
+            {
+                return 1;
+            }
+            
+            Log.GetPullRequestIterationSucceeded(_logger, pullRequest.IterationCount, pullRequestId);
+
+            return pullRequest.IterationCount;
+        }
+        catch (Exception ex)
+        {
+            Log.GetPullRequestIterationFailed(_logger, ex, pullRequestId);
+
+            string apiResponse =
+                await response.Content.ReadAsStringAsync(cancellationToken);
+
+            Log.AzureDevOpsApiResponseError(_logger, apiResponse);
+
+            return 1;
         }
     }
 
