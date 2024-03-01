@@ -12,21 +12,6 @@ public interface IPreviewEnvironmentManager : IAsyncDisposable
     Task InitialiseAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Takes information about a updated pull request and performs the required
-    /// action on its associated preview environment.
-    /// </summary>
-    /// <param name="pullRequestUpdated">
-    /// Information about the updated pull request.
-    /// </param>
-    /// <param name="cancellationToken">
-    /// Cancellation token used to stop this task.
-    /// </param>
-    /// <returns></returns>
-    ValueTask PullRequestUpdatedAsync(
-        PullRequestUpdated pullRequestUpdated,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Checks if any containers have reached their expiration time. If they
     /// have then they are stopped.
     /// </summary>

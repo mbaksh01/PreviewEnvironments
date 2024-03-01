@@ -33,7 +33,8 @@ public static class ServiceCollectionExtensions
             .AddKeyedTransient<IGitProvider, AzureReposGitProvider>(Constants.GitProviders.AzureRepos)
             .AddTransient<IDockerService, DockerService>()
             .AddTransient<ICommandHandler, CommandHandler>()
-            .AddTransient<IBuildCompleteFeature, BuildCompleteFeature>();
+            .AddTransient<IBuildCompleteFeature, BuildCompleteFeature>()
+            .AddTransient<IPullRequestUpdatedFeature, PullRequestUpdatedFeature>();
         
         _ = services.Configure<ApplicationConfiguration>(options =>
         {

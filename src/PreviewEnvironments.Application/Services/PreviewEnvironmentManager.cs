@@ -47,52 +47,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
         await _dockerService.InitialiseAsync(cancellationToken);
     }
 
-    /// <summary>
-    /// Takes information about a updated pull request and performs the required
-    /// action on its associated preview environment.
-    /// </summary>
-    /// <param name="pullRequestUpdated">
-    /// Information about the updated pull request.
-    /// </param>
-    /// <param name="cancellationToken">
-    /// Cancellation token used to stop this task.
-    /// </param>
-    /// <returns></returns>
-    public async ValueTask PullRequestUpdatedAsync(
-        PullRequestUpdated pullRequestUpdated,
-        CancellationToken cancellationToken = default)
-    {
-        if (pullRequestUpdated.State is PullRequestState.Active)
-        {
-            Log.PullRequestUpdatedInvalidPullRequestState(_logger, pullRequestUpdated.State);
-            return;
-        }
-        
-        int pullRequestId = pullRequestUpdated.Id;
 
-        string? containerId = _containers.SingleOrDefault(c => c.PullRequestId == pullRequestId)?.ContainerId;
-
-        if (string.IsNullOrWhiteSpace(containerId))
-        {
-            Log.NoContainerLinkedToPr(_logger, pullRequestId);
-            return;
-        }
-        
-        bool response = await _dockerService.StopAndRemoveContainerAsync(
-            containerId,
-            cancellationToken
-        );
-
-        if (response is false)
-        {
-            Log.ErrorClosingPreviewEnvironment(_logger, pullRequestId);
-            return;
-        }
-
-        _ = _containers.Remove(containerId);
-
-        Log.PreviewEnvironmentClosed(_logger, pullRequestId);
-    }
     
     /// <inheritdoc />
     public async Task ExpireContainersAsync(CancellationToken cancellationToken = default)
