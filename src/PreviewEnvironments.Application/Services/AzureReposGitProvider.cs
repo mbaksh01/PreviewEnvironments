@@ -91,11 +91,11 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
         {
             _ = response.EnsureSuccessStatusCode();
 
-            Log.PostedPreviewAvailableMessage(_logger, pullRequestId);
+            Log.PostedMessage(_logger, pullRequestId);
         }
         catch (Exception ex)
         {
-            Log.PostPreviewAvailableFailed(_logger, ex, pullRequestId);
+            Log.PostMessageFailed(_logger, ex, pullRequestId);
             
             string apiResponse =
                 await response.Content.ReadAsStringAsync(cancellationToken);
@@ -148,11 +148,11 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
         {
             _ = response.EnsureSuccessStatusCode();
 
-            Log.PostedPreviewAvailableMessage(_logger, pullRequestId);
+            Log.PostedMessage(_logger, pullRequestId);
         }
         catch (Exception ex)
         {
-            Log.PostPreviewAvailableFailed(_logger, ex, pullRequestId);
+            Log.PostMessageFailed(_logger, ex, pullRequestId);
             
             string apiResponse =
                 await response.Content.ReadAsStringAsync(cancellationToken);

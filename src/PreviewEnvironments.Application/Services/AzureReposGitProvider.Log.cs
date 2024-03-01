@@ -19,11 +19,11 @@ internal sealed partial class AzureReposGitProvider
         [LoggerMessage(4, LogLevel.Information, "Successfully posted expired container thread for pull request {PullRequestId}.", EventName = nameof(PostedExpiredContainerMessage))]
         public static partial void PostedExpiredContainerMessage(ILogger logger, int pullRequestId);
         
-        [LoggerMessage(5, LogLevel.Information, "Successfully posted preview available message for pull request {PullRequestId}.", EventName = nameof(PostedPreviewAvailableMessage))]
-        public static partial void PostedPreviewAvailableMessage(ILogger logger, int pullRequestId);
+        [LoggerMessage(5, LogLevel.Information, "Successfully posted message for pull request {PullRequestId}.", EventName = nameof(PostedMessage))]
+        public static partial void PostedMessage(ILogger logger, int pullRequestId);
         
-        [LoggerMessage(6, LogLevel.Error, "Failed to post the preview available message for pull request {PullRequestId}.", EventName = nameof(PostPreviewAvailableFailed))]
-        public static partial void PostPreviewAvailableFailed(ILogger logger, Exception exception, int pullRequestId);
+        [LoggerMessage(6, LogLevel.Error, "Failed to post the message for pull request {PullRequestId}.", EventName = nameof(PostMessageFailed))]
+        public static partial void PostMessageFailed(ILogger logger, Exception exception, int pullRequestId);
 
         [LoggerMessage(7, LogLevel.Error, "Failed to get the pull request for pull request {PullRequestId}.", EventName = nameof(GetPullRequestByIdFailed))]
         public static partial void GetPullRequestByIdFailed(ILogger logger, Exception exception, int pullRequestId);
