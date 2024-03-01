@@ -102,6 +102,9 @@ public class AzureDevOpsContractMapperTests
     {
         // Arrange
         const int pullRequestId = 1;
+        const string testOrganization = "TestOrganization";
+        const string testProject = "TestProject";
+        const string testRepository = "TestRepository";
         
         PullRequestCommentedOnContract contract = new()
         {
@@ -109,7 +112,12 @@ public class AzureDevOpsContractMapperTests
             {
                 PullRequest = new PRCOPullRequest
                 {
-                    PullRequestId = pullRequestId
+                    PullRequestId = pullRequestId,
+                    Repository = new PRCORepository
+                    {
+                        Name = testRepository,
+                        RemoteUrl = $"https://dev.azure.com/{testOrganization}/{testProject}/_git/{testRepository}"
+                    }
                 }
             },
         };
@@ -124,6 +132,9 @@ public class AzureDevOpsContractMapperTests
         {
             metadata.PullRequestId.Should().Be(pullRequestId);
             metadata.GitProvider.Should().Be(Application.Constants.GitProviders.AzureRepos);
+            metadata.OrganizationName.Should().Be(testOrganization);
+            metadata.ProjectName.Should().Be(testProject);
+            metadata.RepositoryName.Should().Be(testRepository);
         }
     }
 }

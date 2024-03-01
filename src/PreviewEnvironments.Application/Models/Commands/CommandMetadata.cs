@@ -1,8 +1,14 @@
 ﻿namespace PreviewEnvironments.Application.Models.Commands;
 
-public sealed class CommandMetadata
+public sealed record CommandMetadata
 {
-    public int PullRequestId { get; set; }
+    public int PullRequestId { get; init; }
 
-    public string GitProvider { get; set; } = string.Empty;
+    public string GitProvider { get; init; } = string.Empty;
+
+    public string OrganizationName { get; init; } = string.Empty;
+
+    public string ProjectName { get; init; } = string.Empty;
+
+    public string RepositoryName { get; init; } = string.Empty;
 }

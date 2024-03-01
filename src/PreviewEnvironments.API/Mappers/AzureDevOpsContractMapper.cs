@@ -48,10 +48,17 @@ public static class AzureDevOpsContractMapper
 
     public static CommandMetadata ToMetadata(this PullRequestCommentedOnContract contract)
     {
+        string[] parts = new Uri(contract.Resource.PullRequest.Repository.RemoteUrl)
+            .PathAndQuery
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+        
         return new CommandMetadata
         {
             PullRequestId = contract.Resource.PullRequest.PullRequestId,
             GitProvider = Application.Constants.GitProviders.AzureRepos,
+            OrganizationName = parts[0],
+            ProjectName = parts[1],
+            RepositoryName = contract.Resource.PullRequest.Repository.Name
         };
     }
 }
