@@ -103,63 +103,6 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
             Log.AzureDevOpsApiResponseError(_logger, apiResponse);
         }
     }
-    
-    /// <inheritdoc />
-    public async Task PostPreviewAvailableMessageAsync(
-        string internalBuildId,
-        int pullRequestId,
-        Uri containerAddress,
-        CancellationToken cancellationToken = default)
-    {
-        AzureRepos? configuration = _configurationManager.GetConfigurationById(internalBuildId)?.AzureRepos;
-
-        if (configuration is null)
-        {
-            Log.ConfigurationNotFound(_logger, internalBuildId);
-            return;
-        }
-        
-        UriBuilder builder = new(configuration.BaseAddress)
-        {
-            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/repositories/{configuration.RepositoryName}/pullRequests/{pullRequestId}/threads",
-            Query = "api-version=7.0"
-        };
-
-        PullRequestThreadRequest thread = new()
-        {
-            Comments =
-            [
-                new Comment
-                {
-                    CommentType = "system",
-                    Content = $"Preview environment available at [{containerAddress}]({containerAddress}).",
-                }
-            ],
-            Status = "closed",
-        };
-
-        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.ToString())
-            .WithBasicAuthorization(GetAccessToken(internalBuildId))
-            .WithJsonBody(thread);
-
-        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
-
-        try
-        {
-            _ = response.EnsureSuccessStatusCode();
-
-            Log.PostedMessage(_logger, pullRequestId);
-        }
-        catch (Exception ex)
-        {
-            Log.PostMessageFailed(_logger, ex, pullRequestId);
-            
-            string apiResponse =
-                await response.Content.ReadAsStringAsync(cancellationToken);
-            
-            Log.AzureDevOpsApiResponseError(_logger, apiResponse);
-        }
-    }
 
     /// <inheritdoc />
     public async Task PostExpiredContainerMessageAsync(

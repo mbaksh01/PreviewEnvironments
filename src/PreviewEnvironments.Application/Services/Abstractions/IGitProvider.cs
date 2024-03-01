@@ -7,25 +7,6 @@ namespace PreviewEnvironments.Application.Services.Abstractions;
 internal interface IGitProvider
 {
     /// <summary>
-    /// Posts the <see cref="PreviewAvailableMessage"/> to Azure DevOps.
-    /// </summary>
-    /// <param name="internalBuildId">
-    /// Id used to get the correct configuration file.
-    /// </param>
-    /// <param name="pullRequestId">Id of pull request.</param>
-    /// <param name="containerAddress">
-    /// Address where container can be accessed.
-    /// </param>
-    /// <param name="cancellationToken">
-    /// Cancellation token used to stop this task.
-    /// </param>
-    Task PostPreviewAvailableMessageAsync(
-        string internalBuildId,
-        int pullRequestId,
-        Uri containerAddress,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Posts a message to the pull request stating a container has been stopped.
     /// </summary>
     /// <param name="internalBuildId">

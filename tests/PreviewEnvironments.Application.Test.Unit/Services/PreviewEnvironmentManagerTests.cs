@@ -1,7 +1,9 @@
-﻿using FluentValidation;
+﻿using Docker.DotNet.Models;
+using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using PreviewEnvironments.Application.Extensions;
 using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
 using PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
@@ -470,6 +472,8 @@ public class PreviewEnvironmentManagerTests
             .Validate(Arg.Any<ApplicationConfiguration>())
             .Returns(new ValidationResult());
 
+        int port = 0;
+        
         _dockerService
             .RunContainerAsync(
                 Arg.Any<string>(),
@@ -483,17 +487,8 @@ public class PreviewEnvironmentManagerTests
                 ContainerId = string.Empty,
                 ImageName = $"{x.ArgAt<string>(4)}/{x.ArgAt<string>(0)}",
                 ImageTag = x.ArgAt<string>(1)
-            });
-
-        Uri? containerAddress = null;
-
-        _gitProvider
-            .PostPreviewAvailableMessageAsync(
-                TestInternalBuildId,
-                buildComplete.PullRequestId,
-                Arg.Any<Uri>())
-            .Returns(Task.CompletedTask)
-            .AndDoes(x => containerAddress = x.ArgAt<Uri>(2));
+            })
+            .AndDoes(x => port = x.ArgAt<int>(3));
 
         _gitProvider
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
@@ -510,24 +505,17 @@ public class PreviewEnvironmentManagerTests
         await _sut.BuildCompleteAsync(buildComplete);
 
         // Assert
+        UriBuilder expectedUri = new(configuration.Deployment.ContainerHostAddress)
+        {
+            Port = port,
+        };
+
         await _gitProvider
             .Received(1)
-            .PostPreviewAvailableMessageAsync(
+            .PostPullRequestMessageAsync(
                 TestInternalBuildId,
                 buildComplete.PullRequestId,
-                Arg.Any<Uri>());
-
-        containerAddress.Should().NotBeNull();
-
-        using (new AssertionScope())
-        {
-            containerAddress!.Scheme.Should().Be(DefaultContainerScheme);
-            containerAddress.Host.Should().Be(DefaultContainerHost);
-            
-            containerAddress.Port
-                .Should()
-                .Be(configuration.Deployment.AllowedDeploymentPorts.First());
-        }
+                Arg.Is<string>(s => s.Contains(expectedUri.ToString())));
     }
     
     [Fact]
@@ -540,24 +528,8 @@ public class PreviewEnvironmentManagerTests
             .Validate(Arg.Any<ApplicationConfiguration>())
             .Returns(new ValidationResult());
 
-        int port = 0;
-
-        _dockerService
-            .RunContainerAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                buildComplete.InternalBuildId,
-                Arg.Any<int>(),
-                Arg.Any<string>(),
-                Arg.Any<int>())
-            .Returns(x => new DockerContainer
-            {
-                ContainerId = string.Empty,
-                ImageName = $"{x.ArgAt<string>(4)}/{x.ArgAt<string>(0)}",
-                ImageTag = x.ArgAt<string>(1),
-                Port = x.ArgAt<int>(3)
-            })
-            .AndDoes(x => port = x.ArgAt<int>(3));
+        int initialPort = Random.Shared.Next(10_000, 60_000);
+        int restartPort = 0;
 
         _dockerService
             .RestartContainerAsync(
@@ -569,41 +541,46 @@ public class PreviewEnvironmentManagerTests
                 ImageName = x.Arg<DockerContainer>().ImageName,
                 ImageTag = x.Arg<DockerContainer>().ImageTag
             })
-            .AndDoes(x => port = x.Arg<DockerContainer>().Port);
-
-        Uri? deploymentUri = null;
-
-        _gitProvider
-            .PostPreviewAvailableMessageAsync(
-                TestInternalBuildId,
-                buildComplete.PullRequestId,
-                Arg.Any<Uri>())
-            .Returns(Task.CompletedTask)
-            .AndDoes(x => deploymentUri = x.Arg<Uri>());
+            .AndDoes(x => restartPort = x.Arg<DockerContainer>().Port);
 
         _gitProvider
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
             .Returns(new PullRequestResponse { Status = "active" });
 
+        PreviewEnvironmentConfiguration configuration =
+            GetValidEnvironmentConfiguration();
+        
         _configurationManager
             .GetConfigurationById(TestInternalBuildId)
-            .Returns(GetValidEnvironmentConfiguration());
+            .Returns(configuration);
 
-        await _sut.BuildCompleteAsync(buildComplete);
+        _containers
+            .SingleOrDefault(Arg.Any<Predicate<DockerContainer>>())
+            .Returns(new DockerContainer
+            {
+                ContainerId = string.Empty,
+                ImageName = string.Empty,
+                ImageTag = string.Empty,
+                Port = initialPort,
+            });
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
 
         // Assert
+        UriBuilder expectedUri = new(configuration.Deployment.ContainerHostAddress)
+        {
+            Port = restartPort,
+        };
+        
         await _gitProvider
-            .Received(2)
-            .PostPreviewAvailableMessageAsync(
+            .Received(1)
+            .PostPullRequestMessageAsync(
                 TestInternalBuildId,
                 buildComplete.PullRequestId,
-                new Uri($"https://test.domain.com:{port}"));
+                Arg.Is<string>(s => s.Contains(expectedUri.ToString())));
 
-        deploymentUri.Should().NotBeNull();
-        deploymentUri.Should().Be(new Uri($"https://test.domain.com:{port}"));
+        restartPort.Should().Be(initialPort);
     }
 
     [Fact]
