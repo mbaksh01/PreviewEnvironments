@@ -20,7 +20,7 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
         PropertyNameCaseInsensitive = true,
     };
     
-    private Dictionary<string, PreviewEnvironmentConfigurationWithPath> _configurations = [];
+    private List<PreviewEnvironmentConfigurationExtended> _configurations = [];
 
     public LocalConfigurationManager(
         ILogger<LocalConfigurationManager> logger,
@@ -48,10 +48,12 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
 
     public void ValidateConfigurations()
     {
-        foreach (KeyValuePair<string, PreviewEnvironmentConfigurationWithPath> kvp in _configurations)
+        List<PreviewEnvironmentConfigurationExtended> configurationsToRemove = [];
+        
+        foreach (PreviewEnvironmentConfigurationExtended configurationExtended in _configurations)
         {
-            (PreviewEnvironmentConfiguration configuration, string path) =
-                kvp.Value;
+            (_, PreviewEnvironmentConfiguration configuration, string path) =
+                configurationExtended;
             
             ValidationResult result = _validator.Validate(configuration);
 
@@ -64,20 +66,23 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
             
             DisplayErrors(result.Errors);
 
-            _configurations.Remove(kvp.Key);
+            configurationsToRemove.Add(configurationExtended);
             
             Log.InvalidConfigurationFileNoLongerTracked(_logger, path);
+        }
+
+        foreach (PreviewEnvironmentConfigurationExtended configuration in configurationsToRemove)
+        {
+            _configurations.Remove(configuration);
         }
     }
 
     public PreviewEnvironmentConfiguration? GetConfigurationById(
         string id)
     {
-        _ = _configurations.TryGetValue(
-            buildCompleteInternalBuildId,
-            out PreviewEnvironmentConfigurationWithPath? value);
-
-        return value?.Configuration;
+        return _configurations
+            .SingleOrDefault(c => c.Ids.Contains(id))?
+            .Configuration;
     }
 
     private async Task LoadConfiguration(string path, CancellationToken cancellationToken)
@@ -109,15 +114,33 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
             _ => null,
         };
 
-        if (string.IsNullOrWhiteSpace(internalBuildId))
+        string? internalRepoId = configuration.GitProvider switch
         {
-            Log.InvalidBuildServerName(_logger, configuration.BuildServer, path);
+            Constants.GitProviders.AzureRepos => GetAzureReposId(configuration),
+            _ => null,
+        };
+
+        string?[] ids = [internalBuildId, internalRepoId];
+
+        if (ids.Any(id => !string.IsNullOrWhiteSpace(id)) == false)
+        {
+            Log.UnableToDetermineASuitableId(_logger, path);
             return;
         }
         
         _configurations.Add(
-            internalBuildId,
-            new PreviewEnvironmentConfigurationWithPath(configuration, path));
+            new PreviewEnvironmentConfigurationExtended(ids, configuration, path));
+    }
+
+    private string? GetAzureReposId(PreviewEnvironmentConfiguration configuration)
+    {
+        if (configuration.AzureRepos is null)
+        {
+            Log.MissingAzureReposConfiguration(_logger);
+            return null;
+        }
+
+        return IdHelper.GetAzureReposId(configuration.AzureRepos);
     }
 
     private string? GetAzurePipelinesId(PreviewEnvironmentConfiguration configuration)
@@ -143,6 +166,8 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
     }
 }
 
-internal record PreviewEnvironmentConfigurationWithPath(
+internal record PreviewEnvironmentConfigurationExtended(
+    string?[] Ids,
     PreviewEnvironmentConfiguration Configuration,
     string Path);
+    
