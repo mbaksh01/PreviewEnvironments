@@ -76,4 +76,22 @@ internal interface IGitProvider
         string internalBuildId,
         int pullRequestId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Posts a message to a pull request.
+    /// </summary>
+    /// <param name="internalConfigId">
+    /// Internal build id used to identify configuration.
+    /// </param>
+    /// <param name="pullRequestId">
+    /// Id of pull request to post message to.
+    /// </param>
+    /// <param name="message">Contents of message (Markdown supported).</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    Task PostPullRequestMessageAsync(
+        string internalConfigId,
+        int pullRequestId,
+        string message,
+        CancellationToken cancellationToken = default);
 }

@@ -22,8 +22,8 @@ internal sealed partial class AzureReposGitProvider
         [LoggerMessage(5, LogLevel.Information, "Successfully posted preview available message for pull request {PullRequestId}.", EventName = nameof(PostedPreviewAvailableMessage))]
         public static partial void PostedPreviewAvailableMessage(ILogger logger, int pullRequestId);
         
-        [LoggerMessage(6, LogLevel.Error, "Failed to post the preview available message for pull request {PullRequestId}.", EventName = nameof(PostedPreviewAvailableFailed))]
-        public static partial void PostedPreviewAvailableFailed(ILogger logger, Exception exception, int pullRequestId);
+        [LoggerMessage(6, LogLevel.Error, "Failed to post the preview available message for pull request {PullRequestId}.", EventName = nameof(PostPreviewAvailableFailed))]
+        public static partial void PostPreviewAvailableFailed(ILogger logger, Exception exception, int pullRequestId);
 
         [LoggerMessage(7, LogLevel.Error, "Failed to get the pull request for pull request {PullRequestId}.", EventName = nameof(GetPullRequestByIdFailed))]
         public static partial void GetPullRequestByIdFailed(ILogger logger, Exception exception, int pullRequestId);

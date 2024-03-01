@@ -45,6 +45,64 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
         _configurationManager = configurationManager;
         _configuration = options.Value;
     }
+
+    public async Task PostPullRequestMessageAsync(
+        string internalConfigId,
+        int pullRequestId,
+        string message,
+        CancellationToken cancellationToken = default)
+    {
+        AzureRepos? configuration = _configurationManager
+            .GetConfigurationById(internalConfigId)?
+            .AzureRepos;
+
+        if (configuration is null)
+        {
+            Log.ConfigurationNotFound(_logger, internalConfigId);
+            return;
+        }
+        
+        UriBuilder builder = new(configuration.BaseAddress)
+        {
+            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/repositories/{configuration.RepositoryName}/pullRequests/{pullRequestId}/threads",
+            Query = "api-version=7.0"
+        };
+
+        PullRequestThreadRequest thread = new()
+        {
+            Comments =
+            [
+                new Comment
+                {
+                    CommentType = "system",
+                    Content = message,
+                }
+            ],
+            Status = "closed",
+        };
+
+        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.ToString())
+            .WithBasicAuthorization(GetAccessToken(internalConfigId))
+            .WithJsonBody(thread);
+
+        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+
+        try
+        {
+            _ = response.EnsureSuccessStatusCode();
+
+            Log.PostedPreviewAvailableMessage(_logger, pullRequestId);
+        }
+        catch (Exception ex)
+        {
+            Log.PostPreviewAvailableFailed(_logger, ex, pullRequestId);
+            
+            string apiResponse =
+                await response.Content.ReadAsStringAsync(cancellationToken);
+            
+            Log.AzureDevOpsApiResponseError(_logger, apiResponse);
+        }
+    }
     
     /// <inheritdoc />
     public async Task PostPreviewAvailableMessageAsync(
@@ -94,7 +152,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
         }
         catch (Exception ex)
         {
-            Log.PostedPreviewAvailableFailed(_logger, ex, pullRequestId);
+            Log.PostPreviewAvailableFailed(_logger, ex, pullRequestId);
             
             string apiResponse =
                 await response.Content.ReadAsStringAsync(cancellationToken);
