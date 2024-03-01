@@ -6,6 +6,7 @@ using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
 using PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 using PreviewEnvironments.Application.Models.Docker;
+using PreviewEnvironments.Application.Services;
 using PreviewEnvironments.Application.Services.Abstractions;
 
 namespace PreviewEnvironments.Application.Test.Unit.Features;
@@ -29,9 +30,15 @@ public class BuildCompleteFeatureTests
         _configurationManager = Substitute.For<IConfigurationManager>();
         _containers = Substitute.For<IContainerTracker>();
 
+        IGitProviderFactory factory = Substitute.For<IGitProviderFactory>();
+
+        factory
+            .CreateProvider(Arg.Any<GitProvider>())
+            .Returns(_gitProvider);
+        
         _sut = new BuildCompleteFeature(
             Substitute.For<ILogger<BuildCompleteFeature>>(),
-            Substitute.For<IGitProviderFactory>(),
+            factory,
             _dockerService,
             _containers,
             _configurationManager);
