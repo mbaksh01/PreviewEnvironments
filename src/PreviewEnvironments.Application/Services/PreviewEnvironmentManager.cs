@@ -47,58 +47,6 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
         await _dockerService.InitialiseAsync(cancellationToken);
     }
 
-
-    
-    /// <inheritdoc />
-    public async Task ExpireContainersAsync(CancellationToken cancellationToken = default)
-    {
-        Log.FindingAndStoppingContainers(_logger);
-
-        IEnumerable<DockerContainer> runningContainers = _containers
-            .Where(c => c is { Expired: false, CanExpire: true });
-
-        List<DockerContainer> expiredContainers = [];
-
-        foreach (DockerContainer container in runningContainers)
-        {
-            Deployment? deployment = _configurationManager
-                .GetConfigurationById(container.InternalBuildId)?.Deployment;
-
-            if (deployment is null)
-            {
-                continue;
-            }
-
-            TimeSpan timeout =
-                TimeSpan.FromSeconds(deployment.ContainerTimeoutSeconds);
-
-            if (container.CreatedTime + timeout >= DateTimeOffset.Now)
-            {
-                continue;
-            }
-
-            expiredContainers.Add(container);
-        }
-
-        Log.FoundContainersToExpire(_logger, expiredContainers.Count);
-
-        foreach (DockerContainer expiredContainer in expiredContainers)
-        {
-            expiredContainer.Expired = await _dockerService.StopContainerAsync(
-                expiredContainer.ContainerId,
-                cancellationToken);
-
-            // TODO: Fix this by including the repo type in the docker container.
-            IGitProvider gitProvider =
-                _gitProviderFactory.CreateProvider(GitProvider.AzureRepos);
-            
-            await gitProvider.PostExpiredContainerMessageAsync(
-                expiredContainer.InternalBuildId,
-                expiredContainer.PullRequestId,
-                cancellationToken);
-        }
-    }
-
     public async ValueTask DisposeAsync()
     {
         ICollection<string> containerIds = _containers.GetKeys();

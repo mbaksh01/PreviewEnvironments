@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 using PreviewEnvironments.API.Hosting;
+using PreviewEnvironments.Application.Features.Abstractions;
 using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Services.Abstractions;
 
@@ -7,8 +8,8 @@ namespace PreviewEnvironments.API.Tests.Unit.Hosting;
 
 public class ContainerCleanUpBackgroundServiceTests
 {
-    private readonly IPreviewEnvironmentManager _previewEnvironmentManager =
-        Substitute.For<IPreviewEnvironmentManager>();
+    private readonly IExpireContainersFeature _expireContainersFeature =
+        Substitute.For<IExpireContainersFeature>();
     
     [Fact]
     public async Task ExecuteAsync_Should_Attempt_To_Expire_Containers_Once()
@@ -18,7 +19,7 @@ public class ContainerCleanUpBackgroundServiceTests
         CancellationTokenSource cts = new(delay);
 
         ContainerCleanUpBackgroundService sut = new(
-            _previewEnvironmentManager,
+            _expireContainersFeature,
             Options.Create(new ApplicationConfiguration
             {
                 ContainerTimeoutIntervalSeconds = 1
@@ -29,7 +30,7 @@ public class ContainerCleanUpBackgroundServiceTests
         await Task.Delay(delay);
         
         // Assert
-        await _previewEnvironmentManager
+        await _expireContainersFeature
             .Received(1)
             .ExpireContainersAsync(Arg.Any<CancellationToken>());
     }
@@ -42,7 +43,7 @@ public class ContainerCleanUpBackgroundServiceTests
         CancellationTokenSource cts = new(delay);
 
         ContainerCleanUpBackgroundService sut = new(
-            _previewEnvironmentManager,
+            _expireContainersFeature,
             Options.Create(new ApplicationConfiguration
             {
                 ContainerTimeoutIntervalSeconds = 1,
@@ -53,7 +54,7 @@ public class ContainerCleanUpBackgroundServiceTests
         await Task.Delay(delay);
         
         // Assert
-        await _previewEnvironmentManager
+        await _expireContainersFeature
             .Received(4)
             .ExpireContainersAsync(Arg.Any<CancellationToken>());
     }

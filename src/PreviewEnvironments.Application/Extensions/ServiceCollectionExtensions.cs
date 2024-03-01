@@ -34,7 +34,8 @@ public static class ServiceCollectionExtensions
             .AddTransient<IDockerService, DockerService>()
             .AddTransient<ICommandHandler, CommandHandler>()
             .AddTransient<IBuildCompleteFeature, BuildCompleteFeature>()
-            .AddTransient<IPullRequestUpdatedFeature, PullRequestUpdatedFeature>();
+            .AddTransient<IPullRequestUpdatedFeature, PullRequestUpdatedFeature>()
+            .AddTransient<IExpireContainersFeature, ExpireContainersFeature>();
         
         _ = services.Configure<ApplicationConfiguration>(options =>
         {
