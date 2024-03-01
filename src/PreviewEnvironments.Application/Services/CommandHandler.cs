@@ -1,6 +1,7 @@
 ﻿using CommandLine;
 using Microsoft.Extensions.Logging;
 using PreviewEnvironments.Application.Extensions;
+using PreviewEnvironments.Application.Helpers;
 using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Models.Commands;
 using PreviewEnvironments.Application.Models.Docker;
@@ -43,7 +44,7 @@ internal sealed partial class CommandHandler : ICommandHandler
             Parser.Default.ParseArguments<RestartCommand>(args);
 
         await command.MapResult(
-            restartCommand => RestartAsync(metadata, cancellationToken),
+            _ => RestartAsync(metadata, cancellationToken),
             _ => Task.CompletedTask);
     }
 
@@ -52,9 +53,17 @@ internal sealed partial class CommandHandler : ICommandHandler
         DockerContainer? existingContainer = _containerTracker.SingleOrDefault(c =>
             c.PullRequestId == metadata.PullRequestId);
 
+        IGitProvider gitProvider = GetGitProvider(metadata.GitProvider);
+
         if (existingContainer is null)
         {
             Log.ContainerNotFound(_logger, metadata.PullRequestId);
+
+            await gitProvider.PostContainerNotFoundMessageAsync(
+                IdHelper.GetAzureReposId(metadata),
+                metadata.PullRequestId,
+                cancellationToken);
+            
             return;
         }
 
@@ -71,12 +80,6 @@ internal sealed partial class CommandHandler : ICommandHandler
 
         _containerTracker.Remove(existingContainer.ContainerId);
         _containerTracker.Add(newContainer.ContainerId, newContainer);
-
-        GitProvider gitProviderType =
-            metadata.GitProvider.GetGitProviderFromString();
-
-        IGitProvider gitProvider =
-            _gitProviderFactory.CreateProvider(gitProviderType);
 
         PreviewEnvironmentConfiguration? configuration = _configurationManager
             .GetConfigurationById(newContainer.InternalBuildId);
@@ -95,5 +98,12 @@ internal sealed partial class CommandHandler : ICommandHandler
             metadata.PullRequestId,
             address,
             cancellationToken);
+    }
+
+    private IGitProvider GetGitProvider(string providerType)
+    {
+        GitProvider gitProviderType = providerType.GetGitProviderFromString();
+
+        return _gitProviderFactory.CreateProvider(gitProviderType);
     }
 }
