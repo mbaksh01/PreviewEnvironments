@@ -79,7 +79,7 @@ internal sealed partial class CommandHandler : ICommandHandler
             _gitProviderFactory.CreateProvider(gitProviderType);
 
         PreviewEnvironmentConfiguration? configuration = _configurationManager
-            .GetConfigurationByBuildId(newContainer.InternalBuildId);
+            .GetConfigurationById(newContainer.InternalBuildId);
 
         if (configuration is null)
         {

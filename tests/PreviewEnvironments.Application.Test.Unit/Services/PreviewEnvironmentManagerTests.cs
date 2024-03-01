@@ -158,7 +158,7 @@ public class PreviewEnvironmentManagerTests
             .Returns(new PullRequestResponse { Status = "active" });
 
         _configurationManager
-            .GetConfigurationByBuildId(TestInternalBuildId)
+            .GetConfigurationById(TestInternalBuildId)
             .Returns(GetValidEnvironmentConfiguration());
 
         // Act
@@ -198,7 +198,7 @@ public class PreviewEnvironmentManagerTests
         configuration.Deployment.AllowedDeploymentPorts = [expectedPort];
 
         _configurationManager
-            .GetConfigurationByBuildId(TestInternalBuildId)
+            .GetConfigurationById(TestInternalBuildId)
             .Returns(configuration);
 
         int port = 0;
@@ -247,7 +247,7 @@ public class PreviewEnvironmentManagerTests
         configuration.Deployment.AllowedDeploymentPorts = [7000, expectedPort];
         
         _configurationManager
-            .GetConfigurationByBuildId(TestInternalBuildId)
+            .GetConfigurationById(TestInternalBuildId)
             .Returns(configuration);
 
         int port = 0;
@@ -338,7 +338,7 @@ public class PreviewEnvironmentManagerTests
             GetValidEnvironmentConfiguration();
         
         _configurationManager
-            .GetConfigurationByBuildId(TestInternalBuildId)
+            .GetConfigurationById(TestInternalBuildId)
             .Returns(configuration);
 
         _containers
@@ -379,7 +379,7 @@ public class PreviewEnvironmentManagerTests
             .Returns(new PullRequestResponse { Status = "active" });
 
         _configurationManager
-            .GetConfigurationByBuildId(TestInternalBuildId)
+            .GetConfigurationById(TestInternalBuildId)
             .Returns(GetValidEnvironmentConfiguration());
 
         // Act
@@ -436,7 +436,7 @@ public class PreviewEnvironmentManagerTests
         // configuration.Deployment.AllowedDeploymentPorts = Array.Empty<int>();
 
         _configurationManager
-            .GetConfigurationByBuildId(TestInternalBuildId)
+            .GetConfigurationById(TestInternalBuildId)
             .Returns(configuration);
 
         _containers
@@ -503,7 +503,7 @@ public class PreviewEnvironmentManagerTests
             GetValidEnvironmentConfiguration();
 
         _configurationManager
-            .GetConfigurationByBuildId(TestInternalBuildId)
+            .GetConfigurationById(TestInternalBuildId)
             .Returns(configuration);
 
         // Act
@@ -586,7 +586,7 @@ public class PreviewEnvironmentManagerTests
             .Returns(new PullRequestResponse { Status = "active" });
 
         _configurationManager
-            .GetConfigurationByBuildId(TestInternalBuildId)
+            .GetConfigurationById(TestInternalBuildId)
             .Returns(GetValidEnvironmentConfiguration());
 
         await _sut.BuildCompleteAsync(buildComplete);
@@ -690,7 +690,7 @@ public class PreviewEnvironmentManagerTests
         BuildComplete buildComplete = GetValidBuildComplete();
 
         _configurationManager
-            .GetConfigurationByBuildId(TestInternalBuildId)
+            .GetConfigurationById(TestInternalBuildId)
             .Returns(GetValidEnvironmentConfiguration());
 
         _containers

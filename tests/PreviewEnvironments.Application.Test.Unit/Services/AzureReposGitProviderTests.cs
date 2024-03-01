@@ -39,7 +39,7 @@ public class AzureReposGitProviderTests
         const string expectedRepositoryName = "MyTestRepo";
 
         _configurationManager
-            .GetConfigurationByBuildId(TestInternalBuildId)
+            .GetConfigurationById(TestInternalBuildId)
             .Returns(new PreviewEnvironmentConfiguration
             {
                 GitProvider = Constants.GitProviders.AzureRepos,

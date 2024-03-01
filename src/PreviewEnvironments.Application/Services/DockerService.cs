@@ -133,7 +133,7 @@ internal sealed partial class DockerService : IDockerService
 
         imageName = imageName.ToLower();
 
-        Deployment? deployment = _configurationManager.GetConfigurationByBuildId(internalBuildId)?.Deployment;
+        Deployment? deployment = _configurationManager.GetConfigurationById(internalBuildId)?.Deployment;
         
         if (deployment is null)
         {

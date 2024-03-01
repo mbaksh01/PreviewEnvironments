@@ -76,7 +76,7 @@ public class CommandHandlerTests
 
         _configurationManager
             .Received(1)
-            .GetConfigurationByBuildId(internalBuildId);
+            .GetConfigurationById(internalBuildId);
     }
 
     [Fact]

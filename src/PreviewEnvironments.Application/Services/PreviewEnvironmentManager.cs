@@ -77,7 +77,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
         }
 
         PreviewEnvironmentConfiguration? configuration =
-            _configurationManager.GetConfigurationByBuildId(buildComplete.InternalBuildId);
+            _configurationManager.GetConfigurationById(buildComplete.InternalBuildId);
 
         if (configuration is null)
         {
@@ -272,7 +272,7 @@ internal sealed partial class PreviewEnvironmentManager : IPreviewEnvironmentMan
         foreach (DockerContainer container in runningContainers)
         {
             Deployment? deployment = _configurationManager
-                .GetConfigurationByBuildId(container.InternalBuildId)?.Deployment;
+                .GetConfigurationById(container.InternalBuildId)?.Deployment;
 
             if (deployment is null)
             {

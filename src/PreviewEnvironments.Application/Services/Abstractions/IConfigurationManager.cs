@@ -8,6 +8,6 @@ internal interface IConfigurationManager
     
     void ValidateConfigurations();
     
-    PreviewEnvironmentConfiguration? GetConfigurationByBuildId(
-        string buildCompleteInternalBuildId);
+    PreviewEnvironmentConfiguration? GetConfigurationById(
+        string id);
 }

@@ -53,7 +53,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
         Uri containerAddress,
         CancellationToken cancellationToken = default)
     {
-        AzureRepos? configuration = _configurationManager.GetConfigurationByBuildId(internalBuildId)?.AzureRepos;
+        AzureRepos? configuration = _configurationManager.GetConfigurationById(internalBuildId)?.AzureRepos;
 
         if (configuration is null)
         {
@@ -109,7 +109,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
         int pullRequestId,
         CancellationToken cancellationToken = default)
     {
-        AzureRepos? configuration = _configurationManager.GetConfigurationByBuildId(internalBuildId)?.AzureRepos;
+        AzureRepos? configuration = _configurationManager.GetConfigurationById(internalBuildId)?.AzureRepos;
 
         if (configuration is null)
         {
@@ -153,7 +153,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
         PullRequestStatusState state,
         CancellationToken cancellationToken = default)
     {
-        AzureRepos? configuration = _configurationManager.GetConfigurationByBuildId(internalBuildId)?.AzureRepos;
+        AzureRepos? configuration = _configurationManager.GetConfigurationById(internalBuildId)?.AzureRepos;
 
         if (configuration is null)
         {
@@ -215,7 +215,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
         int pullRequestId,
         CancellationToken cancellationToken = default)
     {
-        AzureRepos? configuration = _configurationManager.GetConfigurationByBuildId(internalBuildId)?.AzureRepos;
+        AzureRepos? configuration = _configurationManager.GetConfigurationById(internalBuildId)?.AzureRepos;
 
         if (configuration is null)
         {
@@ -370,7 +370,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
     private string GetAccessToken(string internalBuildId)
     {
         AzureRepos? configuration = _configurationManager
-            .GetConfigurationByBuildId(internalBuildId)
+            .GetConfigurationById(internalBuildId)
             ?.AzureRepos;
         
         string? accessToken = EnvironmentHelper

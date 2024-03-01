@@ -70,8 +70,8 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
         }
     }
 
-    public PreviewEnvironmentConfiguration? GetConfigurationByBuildId(
-        string buildCompleteInternalBuildId)
+    public PreviewEnvironmentConfiguration? GetConfigurationById(
+        string id)
     {
         _ = _configurations.TryGetValue(
             buildCompleteInternalBuildId,

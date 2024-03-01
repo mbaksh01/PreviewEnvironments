@@ -52,10 +52,10 @@ public class LocalConfigurationManagerTests
 
         // Assert
         PreviewEnvironmentConfiguration? configuration1 =
-            _sut.GetConfigurationByBuildId(internalId1);
+            _sut.GetConfigurationById(internalId1);
 
         PreviewEnvironmentConfiguration? configuration2 =
-            _sut.GetConfigurationByBuildId(internalId2);
+            _sut.GetConfigurationById(internalId2);
 
         configuration1.Should().NotBeNull();
         configuration2.Should().NotBeNull();
@@ -81,8 +81,8 @@ public class LocalConfigurationManagerTests
         
         await _sut.LoadConfigurationsAsync();
 
-        _sut.GetConfigurationByBuildId(validConfigurationId).Should().NotBeNull();
-        _sut.GetConfigurationByBuildId(invalidConfigurationId).Should().NotBeNull();
+        _sut.GetConfigurationById(validConfigurationId).Should().NotBeNull();
+        _sut.GetConfigurationById(invalidConfigurationId).Should().NotBeNull();
 
         _validator
             .Validate(Arg.Is<PreviewEnvironmentConfiguration>(c =>
@@ -98,7 +98,7 @@ public class LocalConfigurationManagerTests
         _sut.ValidateConfigurations();
 
         // Assert
-        _sut.GetConfigurationByBuildId(validConfigurationId).Should().NotBeNull();
-        _sut.GetConfigurationByBuildId(invalidConfigurationId).Should().BeNull();
+        _sut.GetConfigurationById(validConfigurationId).Should().NotBeNull();
+        _sut.GetConfigurationById(invalidConfigurationId).Should().BeNull();
     }
 }
