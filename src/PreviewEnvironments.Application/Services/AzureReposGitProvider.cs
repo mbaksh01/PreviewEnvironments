@@ -26,7 +26,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
                 CommentType = "system",
                 Content = """
                   Preview environment has been stopped to save resources.
-                  To restart the container, re-queue the build.
+                  To restart the container, re-queue the build or use the command '/pe restart'.
                   If your containers stop too early consider increasing the container timeout time.
                   """,
             },
