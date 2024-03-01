@@ -10,18 +10,6 @@ public interface IPreviewEnvironmentManager : IAsyncDisposable
     /// </summary>
     /// <returns></returns>
     Task InitialiseAsync(CancellationToken cancellationToken = default);
-    
-    /// <summary>
-    /// Takes a complete build and starts its associated preview environment.
-    /// </summary>
-    /// <param name="buildComplete">Information about the complete build.</param>
-    /// <param name="cancellationToken">
-    /// Cancellation token used to stop this task.
-    /// </param>
-    /// <returns></returns>
-    Task BuildCompleteAsync(
-        BuildComplete buildComplete,
-        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Takes information about a updated pull request and performs the required

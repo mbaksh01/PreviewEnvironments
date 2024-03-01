@@ -1,4 +1,5 @@
 ﻿using PreviewEnvironments.API.Mappers;
+using PreviewEnvironments.Application.Features.Abstractions;
 using PreviewEnvironments.Application.Services.Abstractions;
 using PreviewEnvironments.Contracts.AzureDevOps.v2;
 
@@ -14,9 +15,9 @@ public static class BuildComplete
             Constants.EndPoints.VSTFS.BuildComplete,
             async (
                 BuildCompleteContract contract,
-                IPreviewEnvironmentManager previewEnvironmentManager) =>
+                IBuildCompleteFeature buildCompleteFeature) =>
             {
-                await previewEnvironmentManager.BuildCompleteAsync(contract.ToModel());
+                await buildCompleteFeature.BuildCompleteAsync(contract.ToModel());
 
                 return Results.NoContent();
             })

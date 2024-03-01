@@ -8,20 +8,8 @@ internal sealed partial class PreviewEnvironmentManager
 {
     private static partial class Log
     {
-        [LoggerMessage(1, LogLevel.Warning, "The application configuration was not deemed to be valid. Some parts of the application not may not work as expected.", EventName = nameof(InvalidApplicationConfiguration))]
-        public static partial void InvalidApplicationConfiguration(ILogger logger);
-        
-        [LoggerMessage(2, LogLevel.Error, "There were no available ports to start this container. Consider increasing the number of allowed ports for build configuration '{InternalBuildId}'.", EventName = nameof(NoAvailablePorts))]
-        public static partial void NoAvailablePorts(ILogger logger, string internalBuildId);
-        
         [LoggerMessage(3, LogLevel.Debug, "Could not find a container linked to the pull request {PullRequestId}.", EventName = nameof(NoContainerLinkedToPr))]
         public static partial void NoContainerLinkedToPr(ILogger logger, int pullRequestId);
-        
-        [LoggerMessage(4, LogLevel.Debug, "Found a container linked to pull request {PullRequestId}.", EventName = nameof(ContainerLinkedToPr))]
-        public static partial void ContainerLinkedToPr(ILogger logger, int pullRequestId);
-
-        [LoggerMessage(5, LogLevel.Error, "An error occurred whilst processing a build complete message.", EventName = nameof(ErrorProcessingBuildCompleteMessage))]
-        public static partial void ErrorProcessingBuildCompleteMessage(ILogger logger, Exception exception);
 
         [LoggerMessage(6, LogLevel.Information, "Successfully closed preview environment linked to pull request {PullRequestId}.", EventName = nameof(PreviewEnvironmentClosed))]
         public static partial void PreviewEnvironmentClosed(ILogger logger, int pullRequestId);
@@ -35,22 +23,7 @@ internal sealed partial class PreviewEnvironmentManager
         [LoggerMessage(9, LogLevel.Debug, "Found {ContainerCount} containers to expire.", EventName = nameof(FoundContainersToExpire))]
         public static partial void FoundContainersToExpire(ILogger logger, int containerCount);
         
-        [LoggerMessage(10, LogLevel.Debug, "The build source branch '{BranchName}' was not for a pull request. Expected the branch name to start with 'refs/pull'.", EventName = nameof(InvalidSourceBranch))]
-        public static partial void InvalidSourceBranch(ILogger logger, string branchName);
-        
-        [LoggerMessage(11, LogLevel.Debug, "The build status '{BuildStatus}' is not supported. Expected the build status to be Succeeded.", EventName = nameof(InvalidBuildStatus))]
-        public static partial void InvalidBuildStatus(ILogger logger, BuildStatus buildStatus);
-        
-        [LoggerMessage(12, LogLevel.Debug, "The preview environment configuration with id '{InternalBuildId}' was not found.", EventName = nameof(PreviewEnvironmentConfigurationNotFound))]
-        public static partial void PreviewEnvironmentConfigurationNotFound(ILogger logger, string internalBuildId);
-        
         [LoggerMessage(13, LogLevel.Debug, "The pull request state '{PullRequestState}' is not supported. Expected Completed or Abandoned.", EventName = nameof(PullRequestUpdatedInvalidPullRequestState))]
         public static partial void PullRequestUpdatedInvalidPullRequestState(ILogger logger, PullRequestState pullRequestState);
-        
-        [LoggerMessage(14, LogLevel.Debug, "The pull request state '{PullRequestState}' is not supported. Expected Active.", EventName = nameof(BuildCompleteInvalidPullRequestState))]
-        public static partial void BuildCompleteInvalidPullRequestState(ILogger logger, PullRequestState pullRequestState);
-
-        [LoggerMessage(15, LogLevel.Warning, "The pull request with id {PullRequestId} was not found. This may mean the applications configuration is invalid.", EventName = nameof(PullRequestNotFound))]
-        public static partial void PullRequestNotFound(ILogger logger, int pullRequestId);
     }
 }

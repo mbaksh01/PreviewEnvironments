@@ -1,6 +1,8 @@
 ﻿using FluentValidation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PreviewEnvironments.Application.Features;
+using PreviewEnvironments.Application.Features.Abstractions;
 using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Services;
 using PreviewEnvironments.Application.Services.Abstractions;
@@ -30,7 +32,8 @@ public static class ServiceCollectionExtensions
             .AddTransient<IGitProviderFactory, GitProviderFactory>()
             .AddKeyedTransient<IGitProvider, AzureReposGitProvider>(Constants.GitProviders.AzureRepos)
             .AddTransient<IDockerService, DockerService>()
-            .AddTransient<ICommandHandler, CommandHandler>();
+            .AddTransient<ICommandHandler, CommandHandler>()
+            .AddTransient<IBuildCompleteFeature, BuildCompleteFeature>();
         
         _ = services.Configure<ApplicationConfiguration>(options =>
         {
