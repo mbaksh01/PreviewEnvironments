@@ -29,5 +29,8 @@ internal partial class LocalConfigurationManager
 
         [LoggerMessage(8, LogLevel.Warning, "The stated git provider was AzureRepos but no matching configuration was found. Ensure that your configuration files contains the \"azureRepos\" section.", EventName = nameof(MissingAzureReposConfiguration))]
         public static partial void MissingAzureReposConfiguration(ILogger logger);
+
+        [LoggerMessage(9, LogLevel.Error, "The configuration file found at path: '{ConfigurationFilePath}' does not contain valid JSON.", EventName = nameof(InvalidConfigurationFileJson))]
+        public static partial void InvalidConfigurationFileJson(ILogger logger, Exception exception, string configurationFilePath);
     }
 }

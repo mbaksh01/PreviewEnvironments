@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+﻿using System.Text.Json;
+using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -59,6 +60,16 @@ public class LocalConfigurationManagerTests
 
         configuration1.Should().NotBeNull();
         configuration2.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task LoadConfigurations_Should_Not_Throw_When_A_Configuration_File_Contains_Invalid_JSON()
+    {
+        // Act
+        Func<Task> action = () => _sut.LoadConfigurationsAsync();
+
+        // Assert
+        await action.Should().NotThrowAsync<JsonException>();
     }
 
     [Fact]

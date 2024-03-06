@@ -44,6 +44,9 @@
     <None Update="TestData\Configurations\InvalidConfiguration3.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="TestData\Configurations\InvalidConfiguration4.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

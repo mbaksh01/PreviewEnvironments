@@ -97,8 +97,18 @@ internal sealed partial class LocalConfigurationManager : IConfigurationManager
 
         string content = await reader.ReadToEndAsync(cancellationToken);
 
-        PreviewEnvironmentConfiguration? configuration = JsonSerializer
-            .Deserialize<PreviewEnvironmentConfiguration>(content, DefaultSerializerOptions);
+        PreviewEnvironmentConfiguration? configuration;
+        
+        try
+        {
+            configuration = JsonSerializer
+                .Deserialize<PreviewEnvironmentConfiguration>(content, DefaultSerializerOptions);
+        }
+        catch (JsonException ex)
+        {
+            Log.InvalidConfigurationFileJson(_logger, ex, path);
+            return;
+        }
 
         if (configuration is null)
         {
