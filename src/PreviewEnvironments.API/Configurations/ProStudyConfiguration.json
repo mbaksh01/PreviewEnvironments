@@ -1,1 +1,22 @@
-﻿
+﻿{
+  "deployment": {
+    "containerHostAddress": "https://pe.redev.co.uk",
+    "imageName": "prostudyweb.blazor",
+    "imageRegistry": "cr.redev.co.uk",
+    "allowedDeploymentPorts": [],
+    "containerTimeoutSeconds": 86400,
+    "createContainerRetryCount": 3
+  },
+  "gitProvider": "AzureRepos",
+  "azureRepos": {
+    "organizationName": "RedevClients",
+    "projectName": "ProStudySystem",
+    "repositoryName": "ProStudyWeb",
+    "personalAccessToken": ""
+  },
+  "buildServer": "AzurePipelines",
+  "azurePipelines": {
+    "projectName": "ProStudySystem",
+    "buildDefinitionId": 95
+  }
+}
