@@ -3,7 +3,12 @@
     "containerHostAddress": "https://pe.redev.co.uk",
     "imageName": "prostudyweb.blazor",
     "imageRegistry": "cr.redev.co.uk",
-    "allowedDeploymentPorts": [],
+    "allowedDeploymentPorts": [
+      10005,
+      10006,
+      10007,
+      10008
+    ],
     "containerTimeoutSeconds": 86400,
     "createContainerRetryCount": 3
   },
