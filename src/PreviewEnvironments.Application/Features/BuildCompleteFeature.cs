@@ -44,7 +44,7 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
             return;
         }
 
-        if (buildComplete.BuildStatus is not BuildStatus.Succeeded)
+        if (buildComplete.BuildStatus is BuildStatus.Failed)
         {
             Log.InvalidBuildStatus(_logger, buildComplete.BuildStatus);
             return;
