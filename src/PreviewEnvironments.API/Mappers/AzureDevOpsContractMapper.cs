@@ -15,7 +15,7 @@ public static class AzureDevOpsContractMapper
         BuildStatus status = contract.Resource.Result switch
         {
             "succeeded" => BuildStatus.Succeeded,
-            "partially succeeded" => BuildStatus.PartiallySucceeded,
+            "partiallySucceeded" => BuildStatus.PartiallySucceeded,
             _ => BuildStatus.Failed,
         };
 

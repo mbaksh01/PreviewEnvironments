@@ -12,7 +12,7 @@ public class AzureDevOpsContractMapperTests
 {
     [Theory]
     [InlineData("succeeded", BuildStatus.Succeeded)]
-    [InlineData("partially succeeded", BuildStatus.PartiallySucceeded)]
+    [InlineData("partiallySucceeded", BuildStatus.PartiallySucceeded)]
     [InlineData("failed", BuildStatus.Failed)]
     public void BuildCompleteContract_ToModel_Should_Return_Correct_Model(
         string rawBuildStatus,
