@@ -18,36 +18,39 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
     private readonly IDockerService _dockerService;
     private readonly IContainerTracker _containers;
     private readonly IConfigurationManager _configurationManager;
+    private readonly IRedirectService _redirectService;
 
     public BuildCompleteFeature(
         ILogger<BuildCompleteFeature> logger,
         IGitProviderFactory gitProviderFactory,
         IDockerService dockerService,
         IContainerTracker containers,
-        IConfigurationManager configurationManager)
+        IConfigurationManager configurationManager,
+        IRedirectService redirectService)
     {
         _logger = logger;
         _gitProviderFactory = gitProviderFactory;
         _dockerService = dockerService;
         _containers = containers;
         _configurationManager = configurationManager;
+        _redirectService = redirectService;
     }
 
     /// <inheritdoc />
-    public async Task BuildCompleteAsync(
+    public async Task<string?> BuildCompleteAsync(
         BuildComplete buildComplete,
         CancellationToken cancellationToken = default)
     {
         if (buildComplete.SourceBranch.StartsWith("refs/pull") is false)
         {
             Log.InvalidSourceBranch(_logger, buildComplete.SourceBranch);
-            return;
+            return null;
         }
 
         if (buildComplete.BuildStatus is BuildStatus.Failed)
         {
             Log.InvalidBuildStatus(_logger, buildComplete.BuildStatus);
-            return;
+            return null;
         }
 
         PreviewEnvironmentConfiguration? configuration =
@@ -56,7 +59,7 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
         if (configuration is null)
         {
             Log.PreviewEnvironmentConfigurationNotFound(_logger, buildComplete.InternalBuildId);
-            return;
+            return null;
         }
 
         IGitProvider gitProvider = _gitProviderFactory.CreateProvider(
@@ -71,13 +74,13 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
         if (pullRequest is null)
         {
             Log.PullRequestNotFound(_logger, buildComplete.PullRequestId);
-            return;
+            return null;
         }
         
         if (pullRequest.Status is not "active")
         {
             Log.BuildCompleteInvalidPullRequestState(_logger, GetPullRequestState(pullRequest.Status));
-            return;
+            return null;
         }
 
         try
@@ -96,9 +99,7 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
             }
             else
             {
-                int[] takenPorts;
-                
-                takenPorts = _containers
+                int[] takenPorts = _containers
                     .Where(c => c.InternalBuildId == buildComplete.InternalBuildId)
                     .Select(c => c.Port)
                     .ToArray();
@@ -108,7 +109,7 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
                     .AllowedDeploymentPorts
                     .FirstOrDefault(p => takenPorts.Contains(p) == false);
             
-                if (port == default)
+                if (port == 0)
                 {
                     Log.NoAvailablePorts(_logger, buildComplete.InternalBuildId);
                     throw new Exception("No free port found to deploy container.");
@@ -134,6 +135,7 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
                     buildComplete.InternalBuildId,
                     port,
                     configuration.Deployment.ImageRegistry,
+                    startContainer: !configuration.Deployment.ColdStartEnabled,
                     cancellationToken: cancellationToken
                 );
             }
@@ -149,18 +151,27 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
                 port = existingContainer.Port;
             }
 
+            if (newContainer is null)
+            {
+                throw new Exception("Failed to start container.");
+            }
+
             if (existingContainer is not null)
             {
                 _ = _containers.Remove(existingContainer.ContainerId);
             }
             
-            if (newContainer is not null)
-            {
-                _containers.Add(newContainer.ContainerId, newContainer);
-            }
-
             Uri containerAddress = new(
                 $"{configuration.Deployment.ContainerHostAddress}:{port}");
+
+            string smallId = newContainer.ContainerId[..12];
+            
+            _containers.Add(newContainer.ContainerId, newContainer);
+            
+            containerAddress = _redirectService.Add(
+                smallId,
+                containerAddress,
+                buildComplete.Host);
             
             await gitProvider.PostPreviewAvailableMessageAsync(
                 buildComplete.InternalBuildId,
@@ -173,6 +184,8 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
                 buildComplete.PullRequestId,
                 PullRequestStatusState.Succeeded,
                 cancellationToken);
+            
+            return smallId;
         }
         catch (Exception ex)
         {
@@ -183,6 +196,8 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
                 buildComplete.PullRequestId,
                 PullRequestStatusState.Failed,
                 cancellationToken);
+
+            return null;
         }
     }
     

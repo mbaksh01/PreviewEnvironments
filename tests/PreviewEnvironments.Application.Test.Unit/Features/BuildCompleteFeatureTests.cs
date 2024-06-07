@@ -22,6 +22,7 @@ public class BuildCompleteFeatureTests
     private readonly IDockerService _dockerService;
     private readonly IConfigurationManager _configurationManager;
     private readonly IContainerTracker _containers;
+    private readonly IRedirectService _redirectService;
 
     public BuildCompleteFeatureTests()
     {
@@ -29,6 +30,7 @@ public class BuildCompleteFeatureTests
         _dockerService = Substitute.For<IDockerService>();
         _configurationManager = Substitute.For<IConfigurationManager>();
         _containers = Substitute.For<IContainerTracker>();
+        _redirectService = Substitute.For<IRedirectService>();
 
         IGitProviderFactory factory = Substitute.For<IGitProviderFactory>();
 
@@ -41,7 +43,8 @@ public class BuildCompleteFeatureTests
             factory,
             _dockerService,
             _containers,
-            _configurationManager);
+            _configurationManager,
+            _redirectService);
     }
 
     [Fact]
@@ -53,9 +56,11 @@ public class BuildCompleteFeatureTests
         buildComplete.SourceBranch = "refs/origin/main";
 
         // Act
-        await _sut.BuildCompleteAsync(buildComplete);
+        string? id = await _sut.BuildCompleteAsync(buildComplete);
 
         // Assert
+        id.Should().BeNull();
+        
         await _gitProvider
             .Received(0)
             .PostPullRequestStatusAsync(
@@ -75,9 +80,11 @@ public class BuildCompleteFeatureTests
         buildComplete.BuildStatus = status;
 
         // Act
-        await _sut.BuildCompleteAsync(buildComplete);
+        string? id = await _sut.BuildCompleteAsync(buildComplete);
 
         // Assert
+        id.Should().BeNull();
+        
         await _gitProvider
             .Received(0)
             .PostPullRequestStatusAsync(
@@ -95,9 +102,11 @@ public class BuildCompleteFeatureTests
         buildComplete.InternalBuildId = TestInternalBuildId;
 
         // Act
-        await _sut.BuildCompleteAsync(buildComplete);
+        string? id = await _sut.BuildCompleteAsync(buildComplete);
 
         // Assert
+        id.Should().BeNull();
+        
         await _gitProvider
             .Received(0)
             .PostPullRequestStatusAsync(
@@ -111,9 +120,8 @@ public class BuildCompleteFeatureTests
     {
         // Arrange
         BuildComplete buildComplete = GetValidBuildComplete();
-
         List<PullRequestStatusState> statusStates = [];
-
+        
         _gitProvider
             .PostPullRequestStatusAsync(
                 TestInternalBuildId,
@@ -126,9 +134,27 @@ public class BuildCompleteFeatureTests
             .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
             .Returns(new PullRequestResponse { Status = "active" });
 
+        PreviewEnvironmentConfiguration configuration =
+            GetValidEnvironmentConfiguration();
+        
         _configurationManager
             .GetConfigurationById(TestInternalBuildId)
-            .Returns(GetValidEnvironmentConfiguration());
+            .Returns(configuration);
+
+        _dockerService
+            .RunContainerAsync(
+                configuration.Deployment.ImageName,
+                $"pr-{buildComplete.PullRequestId}",
+                TestInternalBuildId,
+                configuration.Deployment.AllowedDeploymentPorts[0],
+                configuration.Deployment.ImageRegistry,
+                startContainer: !configuration.Deployment.ColdStartEnabled)
+            .Returns(new DockerContainer
+            {
+                ContainerId = new string('A', 12),
+                ImageName = string.Empty,
+                ImageTag = string.Empty,
+            });
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
@@ -175,10 +201,11 @@ public class BuildCompleteFeatureTests
                 TestInternalBuildId,
                 Arg.Any<int>(),
                 Arg.Any<string>(),
-                Arg.Any<int>())
+                Arg.Any<int>(),
+                startContainer: Arg.Any<bool>())
             .Returns(new DockerContainer
             {
-                ContainerId = string.Empty,
+                ContainerId = new string('A', 12),
                 ImageName = string.Empty,
                 ImageTag = string.Empty
             })
@@ -221,10 +248,11 @@ public class BuildCompleteFeatureTests
                 TestInternalBuildId,
                 Arg.Any<int>(),
                 Arg.Any<string>(),
-                Arg.Any<int>())
+                Arg.Any<int>(),
+                startContainer: Arg.Any<bool>())
             .Returns(x => new DockerContainer
             {
-                ContainerId = string.Empty,
+                ContainerId = new string('A', 12),
                 ImageName = string.Empty,
                 ImageTag = string.Empty,
                 Port = x.ArgAt<int>(3),
@@ -312,9 +340,73 @@ public class BuildCompleteFeatureTests
             ]);
 
         // Act
-        await _sut.BuildCompleteAsync(buildComplete);
+        string? id = await _sut.BuildCompleteAsync(buildComplete);
 
         // Assert
+        id.Should().BeNull();
+        
+        pullRequestStatusStates.Should().HaveCount(2);
+
+        PullRequestStatusState failedStatus = pullRequestStatusStates[1];
+
+        failedStatus.Should().Be(PullRequestStatusState.Failed);
+    }
+    
+    [Fact]
+    public async Task BuildComplete_Should_Post_Failed_Status_When_Docker_Returns_Null()
+    {
+        // Arrange
+        BuildComplete buildComplete = GetValidBuildComplete();
+
+        List<PullRequestStatusState> pullRequestStatusStates = [];
+
+        _gitProvider
+            .PostPullRequestStatusAsync(
+                TestInternalBuildId,
+                buildComplete.PullRequestId,
+                Arg.Any<PullRequestStatusState>())
+            .Returns(Task.CompletedTask)
+            .AndDoes(x => pullRequestStatusStates.Add(x.Arg<PullRequestStatusState>()));
+
+        _dockerService
+            .RunContainerAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                buildComplete.InternalBuildId,
+                Arg.Any<int>(),
+                Arg.Any<string>(),
+                Arg.Any<int>())
+            .Returns((DockerContainer?)null);
+
+        _gitProvider
+            .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
+            .Returns(new PullRequestResponse { Status = "active" });
+
+        PreviewEnvironmentConfiguration configuration =
+            GetValidEnvironmentConfiguration();
+        
+        _configurationManager
+            .GetConfigurationById(TestInternalBuildId)
+            .Returns(configuration);
+
+        _containers
+            .Where(Arg.Any<Predicate<DockerContainer>>())
+            .Returns([
+                new DockerContainer
+                {
+                    ContainerId = "",
+                    ImageName = "",
+                    ImageTag = "",
+                    Port = configuration.Deployment.AllowedDeploymentPorts[0]
+                }
+            ]);
+
+        // Act
+        string? id = await _sut.BuildCompleteAsync(buildComplete);
+
+        // Assert
+        id.Should().BeNull();
+        
         pullRequestStatusStates.Should().HaveCount(2);
 
         PullRequestStatusState failedStatus = pullRequestStatusStates[1];
@@ -348,7 +440,8 @@ public class BuildCompleteFeatureTests
                 buildComplete.InternalBuildId,
                 Arg.Any<int>(),
                 Arg.Any<string>(),
-                Arg.Any<int>());
+                Arg.Any<int>(),
+                startContainer: Arg.Any<bool>());
     }
 
     [Fact]
@@ -411,7 +504,7 @@ public class BuildCompleteFeatureTests
     }
 
     [Fact]
-    public async Task BuildComplete_Should_Use_Deployment_Host_Address_When_Container_Started_Successfully()
+    public async Task BuildComplete_Should_Use_Redirect_Address_When_Container_Started_Successfully()
     {
         // Arrange
         BuildComplete buildComplete = GetValidBuildComplete();
@@ -425,10 +518,11 @@ public class BuildCompleteFeatureTests
                 buildComplete.InternalBuildId,
                 Arg.Any<int>(),
                 Arg.Any<string>(),
-                Arg.Any<int>())
+                Arg.Any<int>(),
+                startContainer: Arg.Any<bool>())
             .Returns(x => new DockerContainer
             {
-                ContainerId = string.Empty,
+                ContainerId = new string('A', 12),
                 ImageName = $"{x.ArgAt<string>(4)}/{x.ArgAt<string>(0)}",
                 ImageTag = x.ArgAt<string>(1)
             })
@@ -445,21 +539,20 @@ public class BuildCompleteFeatureTests
             .GetConfigurationById(TestInternalBuildId)
             .Returns(configuration);
 
+        _redirectService
+            .Add(Arg.Any<string>(), Arg.Any<Uri>(), Arg.Any<Uri>())
+            .Returns(new Uri("https://test.application.com"));
+
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
 
         // Assert
-        UriBuilder expectedUri = new(configuration.Deployment.ContainerHostAddress)
-        {
-            Port = port,
-        };
-
         await _gitProvider
             .Received(1)
             .PostPullRequestMessageAsync(
                 TestInternalBuildId,
                 buildComplete.PullRequestId,
-                Arg.Is<string>(s => s.Contains(expectedUri.ToString())));
+                Arg.Is<string>(s => s.Contains("https://test.application.com")));
     }
     
     [Fact]
@@ -477,7 +570,7 @@ public class BuildCompleteFeatureTests
                 Arg.Any<int>())
             .Returns(x => new DockerContainer
             {
-                ContainerId = string.Empty,
+                ContainerId = x.Arg<DockerContainer>().ContainerId,
                 ImageName = x.Arg<DockerContainer>().ImageName,
                 ImageTag = x.Arg<DockerContainer>().ImageTag
             })
@@ -498,29 +591,115 @@ public class BuildCompleteFeatureTests
             .SingleOrDefault(Arg.Any<Predicate<DockerContainer>>())
             .Returns(new DockerContainer
             {
-                ContainerId = string.Empty,
+                ContainerId = new string('A', 12),
                 ImageName = string.Empty,
                 ImageTag = string.Empty,
                 Port = initialPort,
+            });
+        
+        _redirectService
+            .Add(Arg.Any<string>(), Arg.Any<Uri>(), Arg.Any<Uri>())
+            .Returns(new Uri("https://test.application.com"));
+
+        // Act
+        await _sut.BuildCompleteAsync(buildComplete);
+
+        // Assert
+        await _gitProvider
+            .Received(1)
+            .PostPullRequestMessageAsync(
+                TestInternalBuildId,
+                buildComplete.PullRequestId,
+                Arg.Is<string>(s => s.Contains("https://test.application.com")));
+
+        restartPort.Should().Be(initialPort);
+    }
+    
+    [Fact]
+    public async Task BuildComplete_Should_Return_12_Character_Id()
+    {
+        // Arrange
+        BuildComplete buildComplete = GetValidBuildComplete();
+        
+        _dockerService
+            .RestartContainerAsync(
+                Arg.Any<DockerContainer>(),
+                Arg.Any<int>())
+            .Returns(x => new DockerContainer
+            {
+                ContainerId = x.Arg<DockerContainer>().ContainerId,
+                ImageName = x.Arg<DockerContainer>().ImageName,
+                ImageTag = x.Arg<DockerContainer>().ImageTag
+            });
+
+        _gitProvider
+            .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
+            .Returns(new PullRequestResponse { Status = "active" });
+        
+        _configurationManager
+            .GetConfigurationById(TestInternalBuildId)
+            .Returns(GetValidEnvironmentConfiguration());
+
+        _containers
+            .SingleOrDefault(Arg.Any<Predicate<DockerContainer>>())
+            .Returns(new DockerContainer
+            {
+                ContainerId = new string('A', 24),
+                ImageName = string.Empty,
+                ImageTag = string.Empty
+            });
+
+        // Act
+        string? id = await _sut.BuildCompleteAsync(buildComplete);
+
+        // Assert
+        id.Should().Be(new string('A', 12));
+    }
+    
+    [Fact]
+    public async Task BuildComplete_Should_Add_Container_To_Container_Tracker()
+    {
+        // Arrange
+        BuildComplete buildComplete = GetValidBuildComplete();
+        string containerId = new('A', 24);
+        
+        _dockerService
+            .RestartContainerAsync(
+                Arg.Any<DockerContainer>(),
+                Arg.Any<int>())
+            .Returns(x => new DockerContainer
+            {
+                ContainerId = x.Arg<DockerContainer>().ContainerId,
+                ImageName = x.Arg<DockerContainer>().ImageName,
+                ImageTag = x.Arg<DockerContainer>().ImageTag
+            });
+
+        _gitProvider
+            .GetPullRequestById(TestInternalBuildId, buildComplete.PullRequestId)
+            .Returns(new PullRequestResponse { Status = "active" });
+        
+        _configurationManager
+            .GetConfigurationById(TestInternalBuildId)
+            .Returns(GetValidEnvironmentConfiguration());
+
+        _containers
+            .SingleOrDefault(Arg.Any<Predicate<DockerContainer>>())
+            .Returns(new DockerContainer
+            {
+                ContainerId = containerId,
+                ImageName = string.Empty,
+                ImageTag = string.Empty
             });
 
         // Act
         await _sut.BuildCompleteAsync(buildComplete);
 
         // Assert
-        UriBuilder expectedUri = new(configuration.Deployment.ContainerHostAddress)
-        {
-            Port = restartPort,
-        };
-        
-        await _gitProvider
+        _containers
             .Received(1)
-            .PostPullRequestMessageAsync(
-                TestInternalBuildId,
-                buildComplete.PullRequestId,
-                Arg.Is<string>(s => s.Contains(expectedUri.ToString())));
-
-        restartPort.Should().Be(initialPort);
+            .Add(
+                containerId,
+                Arg.Is<DockerContainer>(c => c.ContainerId == containerId));
     }
 
     private static BuildComplete GetValidBuildComplete()
@@ -545,7 +724,10 @@ public class BuildCompleteFeatureTests
                 ContainerHostAddress =
                     $"{DefaultContainerScheme}://{DefaultContainerHost}",
                 AllowedDeploymentPorts = [24302],
-                ContainerTimeoutSeconds = 60
+                ContainerTimeoutSeconds = 60,
+                ImageName = "test-image-name",
+                ImageRegistry = "test.registry.com",
+                ColdStartEnabled = true
             }
         };
     }

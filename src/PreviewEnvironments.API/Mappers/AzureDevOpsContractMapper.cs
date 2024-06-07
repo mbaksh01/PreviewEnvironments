@@ -29,6 +29,20 @@ public static class AzureDevOpsContractMapper
         };
     }
 
+    public static BuildComplete WithHost(this BuildComplete buildComplete, HttpRequest host)
+    {
+        UriBuilder hostBuilder = new(host.Scheme, host.Host.Host);
+
+        if (host.Host.Port != null)
+        {
+            hostBuilder.Port = (int)host.Host.Port;
+        }
+
+        buildComplete.Host = hostBuilder.Uri;
+
+        return buildComplete;
+    }
+
     public static PullRequestUpdated ToModel(this PullRequestUpdatedContract contract)
     {
         PullRequestState state = contract.Resource.Status switch

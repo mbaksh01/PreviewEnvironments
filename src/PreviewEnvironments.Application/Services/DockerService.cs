@@ -126,6 +126,7 @@ internal sealed partial class DockerService : IDockerService
         int publicPort,
         string registry = "localhost:5002",
         int exposedPort = 80,
+        bool startContainer = true,
         CancellationToken cancellationToken = default
     )
     {
@@ -160,8 +161,6 @@ internal sealed partial class DockerService : IDockerService
             cancellationToken
         );
 
-        bool started = await StartContainerAsync(response.ID, cancellationToken);
-
         DockerContainer startedContainer = new()
         {
             ContainerId = response.ID,
@@ -169,10 +168,20 @@ internal sealed partial class DockerService : IDockerService
             ImageTag = imageTag,
             PullRequestId = int.Parse(imageTag.AsSpan(imageTag.IndexOf('-') + 1)),
             InternalBuildId = internalBuildId,
-            Port = publicPort
+            Port = publicPort,
+            Expired = true,
         };
+
+        if (!startContainer)
+        {
+            return startedContainer;
+        }
         
-        return started ? startedContainer : null;
+        bool started = await StartContainerAsync(response.ID, cancellationToken);
+
+        startedContainer.Expired = started;
+
+        return startedContainer;
     }
 
     /// <inheritdoc />
@@ -208,6 +217,7 @@ internal sealed partial class DockerService : IDockerService
             existingContainer.Port,
             registry,
             exposedPort,
+            true,
             cancellationToken
         );
     }
@@ -404,7 +414,7 @@ internal sealed partial class DockerService : IDockerService
         return response;
     }
 
-    private async Task<bool> StartContainerAsync(string containerId, CancellationToken cancellationToken = default)
+    public async Task<bool> StartContainerAsync(string containerId, CancellationToken cancellationToken = default)
     {
         bool started = await _dockerClient.Containers.StartContainerAsync(
             containerId,

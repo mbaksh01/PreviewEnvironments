@@ -17,5 +17,10 @@ public static class Constants
         {
             public const string Root = "/";
         }
+        
+        public static class Containers
+        {
+            public const string EnvironmentRedirect = "/environments/{id}";
+        }
     }
 }
