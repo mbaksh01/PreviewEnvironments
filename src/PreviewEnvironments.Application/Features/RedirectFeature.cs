@@ -1,20 +1,24 @@
-﻿using PreviewEnvironments.Application.Features.Abstractions;
+﻿using Microsoft.Extensions.Logging;
+using PreviewEnvironments.Application.Features.Abstractions;
 using PreviewEnvironments.Application.Models.Docker;
 using PreviewEnvironments.Application.Services.Abstractions;
 
 namespace PreviewEnvironments.Application.Features;
 
-internal sealed class RedirectFeature : IRedirectFeature
+internal sealed partial class RedirectFeature : IRedirectFeature
 {
     private readonly IRedirectService _redirectService;
     private readonly IContainerTracker _containerTracker;
     private readonly IDockerService _dockerService;
+    private readonly ILogger<RedirectFeature> _logger;
 
     public RedirectFeature(
+        ILogger<RedirectFeature> logger,
         IRedirectService redirectService,
         IContainerTracker containerTracker,
         IDockerService dockerService)
     {
+        _logger = logger;
         _redirectService = redirectService;
         _containerTracker = containerTracker;
         _dockerService = dockerService;
@@ -28,12 +32,15 @@ internal sealed class RedirectFeature : IRedirectFeature
         
         if (container is null)
         {
+            Log.ContainerNotFound(_logger, id);
             return null;
         }
 
         if (container.Expired)
         {
-            await _dockerService.StartContainerAsync(container.ContainerId);
+            Log.StartingContainer(_logger, container.ContainerId);
+            container.Expired = !await _dockerService.StartContainerAsync(container.ContainerId);
+            container.CreatedTime = DateTimeOffset.UtcNow;
         }
         
         return _redirectService.GetRedirectUri(id);

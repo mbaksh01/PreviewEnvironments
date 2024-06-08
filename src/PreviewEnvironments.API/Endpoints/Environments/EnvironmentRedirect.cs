@@ -17,7 +17,7 @@ public static class EnvironmentRedirect
 
                     return redirectUri is null
                         ? Results.NotFound()
-                        : Results.Redirect(redirectUri.ToString(), permanent: true);
+                        : Results.Redirect(redirectUri.ToString(), permanent: false);
                 })
             .WithName(Name)
             .WithOpenApi()

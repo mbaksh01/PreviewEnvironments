@@ -416,6 +416,21 @@ internal sealed partial class DockerService : IDockerService
 
     public async Task<bool> StartContainerAsync(string containerId, CancellationToken cancellationToken = default)
     {
+        var container = await _dockerClient.GetContainerById(containerId, cancellationToken);
+
+        if (container is null)
+        {
+            Log.ContainerNotFound(_logger, containerId);
+            Log.ContainerNotStarted(_logger, containerId);
+            return false;
+        }
+
+        if (container.State is "running")
+        {
+            Log.ContainerStarted(_logger, containerId);
+            return true;
+        }
+        
         bool started = await _dockerClient.Containers.StartContainerAsync(
             containerId,
             new ContainerStartParameters(),
