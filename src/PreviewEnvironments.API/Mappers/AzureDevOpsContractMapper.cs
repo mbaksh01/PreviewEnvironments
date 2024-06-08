@@ -29,14 +29,37 @@ public static class AzureDevOpsContractMapper
         };
     }
 
-    public static BuildComplete WithHost(this BuildComplete buildComplete, HttpRequest host)
+    public static BuildComplete WithHost(this BuildComplete buildComplete, HttpRequest request)
     {
-        UriBuilder hostBuilder = new(host.Scheme, host.Host.Host);
+        string host = request.Host.Host;
+        string scheme = request.Scheme;
+        int port = request.Host.Port ?? 80;
 
-        if (host.Host.Port != null)
+        if (request.Headers.TryGetValue("Host", out var hostHeader))
         {
-            hostBuilder.Port = (int)host.Host.Port;
+            if (!string.IsNullOrWhiteSpace(hostHeader))
+            {
+                host = hostHeader!;
+            }
         }
+        
+        if (request.Headers.TryGetValue("X-Forwarded-Scheme", out var schemeHeader))
+        {
+            if (!string.IsNullOrWhiteSpace(schemeHeader))
+            {
+                scheme = schemeHeader!;
+            }
+        }
+        
+        if (request.Headers.TryGetValue("X-Forwarded-Port", out var portHeader))
+        {
+            _ = int.TryParse(portHeader, out port);
+        }
+
+        UriBuilder hostBuilder = new(scheme, host)
+        {
+            Port = port
+        };
 
         buildComplete.Host = hostBuilder.Uri;
 

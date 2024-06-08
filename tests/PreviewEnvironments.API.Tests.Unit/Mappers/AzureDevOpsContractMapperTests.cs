@@ -140,7 +140,7 @@ public class AzureDevOpsContractMapperTests
     }
 
     [Fact]
-    public void BuildComplete_WithHost_Should_Set_Host_Correctly()
+    public void BuildComplete_WithHost_Should_Use_Fallback_When_Headers_Are_Not_Present()
     {
         // Arrange
         BuildComplete buildComplete = new()
@@ -164,6 +164,38 @@ public class AzureDevOpsContractMapperTests
         // Assert
         buildComplete.Host.Should().BeEquivalentTo(new Uri("https://test.application.com:1234"));
     }
+    
+    [Fact]
+    public void BuildComplete_WithHost_Should_Use_Headers()
+    {
+        // Arrange
+        BuildComplete buildComplete = new()
+        {
+            BuildStatus = BuildStatus.Succeeded,
+            BuildUrl = new Uri("https://build.address.com"),
+            SourceBranch = "test/branch",
+            InternalBuildId = "TestInternalBuildId",
+            PullRequestId = 1
+        };
+
+        HttpRequest request = new TestHttpRequest
+        {
+            Host = new HostString("test.application.com", 1234),
+            Scheme = "http",
+            Headers =
+            {
+                ["X-Forwarded-Scheme"] = "https",
+                Host = "test.host.com",
+                ["X-Forwarded-Port"] = "5678"
+            }
+        };
+
+        // Act
+        buildComplete.WithHost(request);
+
+        // Assert
+        buildComplete.Host.Should().BeEquivalentTo(new Uri("https://test.host.com:5678"));
+    }
 
     class TestHttpRequest : HttpRequest
     {
@@ -183,7 +215,8 @@ public class AzureDevOpsContractMapperTests
         public override QueryString QueryString { get; set; }
         public override IQueryCollection Query { get; set; }
         public override string Protocol { get; set; }
-        public override IHeaderDictionary Headers { get; }
+
+        public override IHeaderDictionary Headers { get; } = new HeaderDictionary();
         public override IRequestCookieCollection Cookies { get; set; }
         public override long? ContentLength { get; set; }
         public override string? ContentType { get; set; }
