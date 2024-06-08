@@ -196,6 +196,50 @@ public class AzureDevOpsContractMapperTests
         // Assert
         buildComplete.Host.Should().BeEquivalentTo(new Uri("https://test.host.com:5678"));
     }
+    
+    [Fact]
+    public void CommandMetadata_WithHost_Should_Use_Fallback_When_Headers_Are_Not_Present()
+    {
+        // Arrange
+        CommandMetadata metadata = new();
+
+        HttpRequest request = new TestHttpRequest
+        {
+            Host = new HostString("test.application.com", 1234),
+            Scheme = "https",
+        };
+
+        // Act
+        metadata.WithHost(request);
+
+        // Assert
+        metadata.Host.Should().BeEquivalentTo(new Uri("https://test.application.com:1234"));
+    }
+    
+    [Fact]
+    public void CommandMetadata_WithHost_Should_Use_Headers()
+    {
+        // Arrange
+        CommandMetadata metadata = new();
+
+        HttpRequest request = new TestHttpRequest
+        {
+            Host = new HostString("test.application.com", 1234),
+            Scheme = "http",
+            Headers =
+            {
+                ["X-Forwarded-Scheme"] = "https",
+                Host = "test.host.com",
+                ["X-Forwarded-Port"] = "5678"
+            }
+        };
+
+        // Act
+        metadata.WithHost(request);
+
+        // Assert
+        metadata.Host.Should().BeEquivalentTo(new Uri("https://test.host.com:5678"));
+    }
 
     class TestHttpRequest : HttpRequest
     {

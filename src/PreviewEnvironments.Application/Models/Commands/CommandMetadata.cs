@@ -11,4 +11,6 @@ public sealed record CommandMetadata
     public string ProjectName { get; init; } = string.Empty;
 
     public string RepositoryName { get; init; } = string.Empty;
+
+    public Uri Host { get; set; } = default!;
 }

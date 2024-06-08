@@ -12,6 +12,7 @@ public class CommandHandlerTests
     private readonly IContainerTracker _containerTracker;
     private readonly IGitProviderFactory _gitProviderFactory;
     private readonly IConfigurationManager _configurationManager;
+    private readonly IRedirectService _redirectService;
     
     private readonly ICommandHandler _sut;
 
@@ -21,13 +22,15 @@ public class CommandHandlerTests
         _containerTracker = Substitute.For<IContainerTracker>();
         _gitProviderFactory = Substitute.For<IGitProviderFactory>();
         _configurationManager = Substitute.For<IConfigurationManager>();
+        _redirectService = Substitute.For<IRedirectService>();
         
         _sut = new CommandHandler(
             Substitute.For<ILogger<CommandHandler>>(),
             _dockerService,
             _containerTracker,
             _gitProviderFactory,
-            _configurationManager);
+            _configurationManager,
+            _redirectService);
     }
 
     [Fact]

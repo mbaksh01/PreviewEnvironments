@@ -14,11 +14,12 @@ public static class PullRequestCommentedOn
                 Constants.EndPoints.VSTFS.PullRequestCommentOn,
                 async (
                     PullRequestCommentedOnContract contract,
+                    HttpContext context,
                     ICommandHandler commandHandler) =>
                 {
                     await commandHandler.HandleAsync(
                         contract.Resource.Comment.Content,
-                        contract.ToMetadata());
+                        contract.ToMetadata().WithHost(context.Request));
 
                     return Results.NoContent();
                 })
