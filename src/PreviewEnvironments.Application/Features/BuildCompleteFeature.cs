@@ -41,15 +41,8 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
         BuildComplete buildComplete,
         CancellationToken cancellationToken = default)
     {
-        if (buildComplete.SourceBranch.StartsWith("refs/pull") is false)
+        if (!IsBuildValid(buildComplete))
         {
-            Log.InvalidSourceBranch(_logger, buildComplete.SourceBranch);
-            return null;
-        }
-
-        if (buildComplete.BuildStatus is BuildStatus.Failed)
-        {
-            Log.InvalidBuildStatus(_logger, buildComplete.BuildStatus);
             return null;
         }
 
@@ -64,92 +57,27 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
 
         IGitProvider gitProvider = _gitProviderFactory.CreateProvider(
             configuration.GitProvider.GetGitProviderFromString());
-        
-        PullRequestResponse? pullRequest =
-            await gitProvider.GetPullRequestById(
-                buildComplete.InternalBuildId,
-                buildComplete.PullRequestId,
-                cancellationToken);
-        
-        if (pullRequest is null)
+
+        if (!await IsPullRequestActive(buildComplete, gitProvider, cancellationToken))
         {
-            Log.PullRequestNotFound(_logger, buildComplete.PullRequestId);
-            return null;
-        }
-        
-        if (pullRequest.Status is not "active")
-        {
-            Log.BuildCompleteInvalidPullRequestState(_logger, GetPullRequestState(pullRequest.Status));
             return null;
         }
 
         try
         {
-            await gitProvider.PostPullRequestStatusAsync(
-                buildComplete.InternalBuildId,
-                buildComplete.PullRequestId,
+            await PostPullRequestStatusAsync(
+                buildComplete,
+                gitProvider,
                 PullRequestStatusState.Pending,
                 cancellationToken);
-            
-            int port;
-            
-            if (configuration.Deployment.AllowedDeploymentPorts.Length == 0)
-            {
-                port = Random.Shared.Next(10_000, 60_000);
-            }
-            else
-            {
-                int[] takenPorts = _containers
-                    .Where(c => c.InternalBuildId == buildComplete.InternalBuildId)
-                    .Select(c => c.Port)
-                    .ToArray();
-            
-                port = configuration
-                    .Deployment
-                    .AllowedDeploymentPorts
-                    .FirstOrDefault(p => takenPorts.Contains(p) == false);
-            
-                if (port == 0)
-                {
-                    Log.NoAvailablePorts(_logger, buildComplete.InternalBuildId);
-                    throw new Exception("No free port found to deploy container.");
-                }
-            }
 
-            // ASSUMPTION: Assuming that the tag is the pr number with 'pr-' prefixed.
-            DockerContainer? existingContainer = _containers.SingleOrDefault(
-                dc =>
-                    dc.ImageName == $"{configuration.Deployment.ImageRegistry}/{configuration.Deployment.ImageName.ToLower()}"
-                    && dc.ImageTag == $"pr-{buildComplete.PullRequestId}"
-            );
-            
-            DockerContainer? newContainer;
+            int port = GetDeploymentPort(buildComplete, configuration);
 
-            if (existingContainer is null)
-            {
-                Log.NoContainerLinkedToPr(_logger, buildComplete.PullRequestId);
-                
-                newContainer = await _dockerService.RunContainerAsync(
-                    configuration.Deployment.ImageName,
-                    $"pr-{buildComplete.PullRequestId}",
-                    buildComplete.InternalBuildId,
-                    port,
-                    configuration.Deployment.ImageRegistry,
-                    startContainer: !configuration.Deployment.ColdStartEnabled,
-                    cancellationToken: cancellationToken
-                );
-            }
-            else
-            {
-                Log.ContainerLinkedToPr(_logger, buildComplete.PullRequestId);
-                
-                newContainer = await _dockerService.RestartContainerAsync(
-                    existingContainer,
-                    cancellationToken: cancellationToken
-                );
-
-                port = existingContainer.Port;
-            }
+            (DockerContainer? existingContainer, DockerContainer? newContainer, port) = await RunContainer(
+                buildComplete,
+                configuration,
+                port,
+                cancellationToken);
 
             if (newContainer is null)
             {
@@ -179,9 +107,9 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
                 containerAddress,
                 cancellationToken);
 
-            await gitProvider.PostPullRequestStatusAsync(
-                buildComplete.InternalBuildId,
-                buildComplete.PullRequestId,
+            await PostPullRequestStatusAsync(
+                buildComplete,
+                gitProvider,
                 PullRequestStatusState.Succeeded,
                 cancellationToken);
             
@@ -191,16 +119,150 @@ internal sealed partial class BuildCompleteFeature : IBuildCompleteFeature
         {
             Log.ErrorProcessingBuildCompleteMessage(_logger, ex);
 
-            await gitProvider.PostPullRequestStatusAsync(
-                buildComplete.InternalBuildId,
-                buildComplete.PullRequestId,
+            await PostPullRequestStatusAsync(
+                buildComplete,
+                gitProvider,
                 PullRequestStatusState.Failed,
                 cancellationToken);
 
             return null;
         }
     }
-    
+
+    private async Task<(DockerContainer? existingContainer, DockerContainer? newContainer, int port)> RunContainer(
+        BuildComplete buildComplete,
+        PreviewEnvironmentConfiguration configuration,
+        int port,
+        CancellationToken cancellationToken)
+    {
+        // ASSUMPTION: Assuming that the tag is the pr number with 'pr-' prefixed.
+        DockerContainer? existingContainer = _containers.SingleOrDefault(
+            dc =>
+                dc.ImageName == $"{configuration.Deployment.ImageRegistry}/{configuration.Deployment.ImageName.ToLower()}"
+                && dc.ImageTag == $"pr-{buildComplete.PullRequestId}"
+        );
+            
+        DockerContainer? newContainer;
+
+        if (existingContainer is null)
+        {
+            Log.NoContainerLinkedToPr(_logger, buildComplete.PullRequestId);
+                
+            newContainer = await _dockerService.RunContainerAsync(
+                configuration.Deployment.ImageName,
+                $"pr-{buildComplete.PullRequestId}",
+                buildComplete.InternalBuildId,
+                port,
+                configuration.Deployment.ImageRegistry,
+                startContainer: !configuration.Deployment.ColdStartEnabled,
+                cancellationToken: cancellationToken
+            );
+        }
+        else
+        {
+            Log.ContainerLinkedToPr(_logger, buildComplete.PullRequestId);
+                
+            newContainer = await _dockerService.RestartContainerAsync(
+                existingContainer,
+                cancellationToken: cancellationToken
+            );
+
+            port = existingContainer.Port;
+        }
+
+        return (existingContainer, newContainer, port);
+    }
+
+    private int GetDeploymentPort(
+        BuildComplete buildComplete,
+        PreviewEnvironmentConfiguration configuration)
+    {
+        int port;
+        
+        if (configuration.Deployment.AllowedDeploymentPorts.Length == 0)
+        {
+            port = Random.Shared.Next(10_000, 60_000);
+        }
+        else
+        {
+            int[] takenPorts = _containers
+                .Where(c => c.InternalBuildId == buildComplete.InternalBuildId)
+                .Select(c => c.Port)
+                .ToArray();
+            
+            port = configuration
+                .Deployment
+                .AllowedDeploymentPorts
+                .FirstOrDefault(p => takenPorts.Contains(p) == false);
+
+            if (port != 0)
+            {
+                return port;
+            }
+            
+            Log.NoAvailablePorts(_logger, buildComplete.InternalBuildId);
+            throw new Exception("No free port found to deploy container.");
+        }
+
+        return port;
+    }
+
+    private static async Task PostPullRequestStatusAsync(
+        BuildComplete buildComplete,
+        IGitProvider gitProvider,
+        PullRequestStatusState state,
+        CancellationToken cancellationToken)
+    {
+        await gitProvider.PostPullRequestStatusAsync(
+            buildComplete.InternalBuildId,
+            buildComplete.PullRequestId,
+            state,
+            cancellationToken);
+    }
+
+    private async Task<bool> IsPullRequestActive(
+        BuildComplete buildComplete,
+        IGitProvider gitProvider,
+        CancellationToken cancellationToken)
+    {
+        PullRequestResponse? pullRequest =
+            await gitProvider.GetPullRequestById(
+                buildComplete.InternalBuildId,
+                buildComplete.PullRequestId,
+                cancellationToken);
+        
+        if (pullRequest is null)
+        {
+            Log.PullRequestNotFound(_logger, buildComplete.PullRequestId);
+            return false;
+        }
+        
+        if (pullRequest.Status is not "active")
+        {
+            Log.BuildCompleteInvalidPullRequestState(_logger, GetPullRequestState(pullRequest.Status));
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool IsBuildValid(BuildComplete buildComplete)
+    {
+        if (buildComplete.SourceBranch.StartsWith("refs/pull") is false)
+        {
+            Log.InvalidSourceBranch(_logger, buildComplete.SourceBranch);
+            return false;
+        }
+
+        if (buildComplete.BuildStatus is BuildStatus.Failed)
+        {
+            Log.InvalidBuildStatus(_logger, buildComplete.BuildStatus);
+            return false;
+        }
+
+        return true;
+    }
+
     private static PullRequestState GetPullRequestState(string state)
     {
         return state switch
