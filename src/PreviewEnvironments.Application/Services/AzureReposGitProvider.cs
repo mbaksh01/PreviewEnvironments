@@ -15,24 +15,6 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
     private readonly ILogger<AzureReposGitProvider> _logger;
     private readonly IConfigurationManager _configurationManager;
     private readonly HttpClient _httpClient;
-    private readonly ApplicationConfiguration _configuration;
-    
-    private static readonly PullRequestThreadRequest ExpiredContainerThread = new()
-    {
-        Comments =
-        [
-            new Comment
-            {
-                CommentType = "system",
-                Content = """
-                  Preview environment has been stopped to save resources.
-                  To restart the container, follow the link posted to this pull request, re-queue the build or use the command `/pe restart`.
-                  If your containers stop too early consider increasing the containerTimeoutSeconds for this project.
-                  """,
-            },
-        ],
-        Status = "closed",
-    };
 
     public AzureReposGitProvider(
         ILogger<AzureReposGitProvider> logger,
@@ -43,7 +25,6 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
         _logger = logger;
         _httpClient = httpClient;
         _configurationManager = configurationManager;
-        _configuration = options.Value;
     }
 
     public async Task PostPullRequestMessageAsync(
@@ -97,49 +78,6 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
         {
             Log.PostMessageFailed(_logger, ex, pullRequestId);
             
-            string apiResponse =
-                await response.Content.ReadAsStringAsync(cancellationToken);
-            
-            Log.AzureDevOpsApiResponseError(_logger, apiResponse);
-        }
-    }
-
-    /// <inheritdoc />
-    public async Task PostExpiredContainerMessageAsync(
-        string internalBuildId,
-        int pullRequestId,
-        CancellationToken cancellationToken = default)
-    {
-        AzureRepos? configuration = _configurationManager.GetConfigurationById(internalBuildId)?.AzureRepos;
-
-        if (configuration is null)
-        {
-            Log.ConfigurationNotFound(_logger, internalBuildId);
-            return;
-        }
-
-        UriBuilder builder = new(configuration.BaseAddress)
-        {
-            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/repositories/{configuration.RepositoryName}/pullRequests/{pullRequestId}/threads",
-            Query = "api-version=7.0"
-        };
-        
-        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, builder.Uri)
-            .WithBasicAuthorization(GetAccessToken(internalBuildId))
-            .WithJsonBody(ExpiredContainerThread);
-        
-        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
-
-        try
-        {
-            _ = response.EnsureSuccessStatusCode();
-            
-            Log.PostedExpiredContainerMessage(_logger, pullRequestId);
-        }
-        catch (Exception ex)
-        {
-            Log.PostedStatusFailed(_logger, ex);
-
             string apiResponse =
                 await response.Content.ReadAsStringAsync(cancellationToken);
             
@@ -226,7 +164,7 @@ internal sealed partial class AzureReposGitProvider : IGitProvider
 
         UriBuilder builder = new(configuration.BaseAddress)
         {
-            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/pullrequests/{pullRequestId}",
+            Path = $"{configuration.OrganizationName}/{configuration.ProjectName}/_apis/git/pullRequests/{pullRequestId}",
             Query = "api-version=7.0"
         };
 

@@ -1,26 +1,10 @@
-﻿using PreviewEnvironments.Application.Models.AzureDevOps;
-using PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
+﻿using PreviewEnvironments.Application.Models.AzureDevOps.Contracts;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
 
 namespace PreviewEnvironments.Application.Services.Abstractions;
 
 internal interface IGitProvider
 {
-    /// <summary>
-    /// Posts a message to the pull request stating a container has been stopped.
-    /// </summary>
-    /// <param name="internalBuildId">
-    /// Id used to get the correct configuration file.
-    /// </param>
-    /// <param name="pullRequestId">Pull request number to post to.</param>
-    /// <param name="cancellationToken">
-    /// Cancellation token used to stop this task.
-    /// </param>
-    Task PostExpiredContainerMessageAsync(
-        string internalBuildId,
-        int pullRequestId,
-        CancellationToken cancellationToken = default);
-
     /// <summary>
     /// Posts a pull request status to the pull request with id
     /// <paramref name="pullRequestId"/>.

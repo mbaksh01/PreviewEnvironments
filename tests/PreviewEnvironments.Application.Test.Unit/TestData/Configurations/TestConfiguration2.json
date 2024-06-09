@@ -3,5 +3,7 @@
   "azurePipelines": {
     "projectName": "TestProject2",
     "buildDefinitionId": 2
-  }
+  },
+  "gitProvider": "AzureRepos",
+  "azureRepos": {}
 }
