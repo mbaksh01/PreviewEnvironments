@@ -15,14 +15,15 @@ environment should be managed and deployed.
 
 ### Deployment
 
-| Property Name             | Description                                                                                                                                                              | Required |
-|---------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|
-| ContainerHostAddress      | The host address where the deployed container will be accessible. This value is used to send a message to the pull request with a link to where the container is hosted. | ✅        |
-| ImageName                 | The name of the docker image containing your application.                                                                                                                | ✅        |
-| ImageRegistry             | The docker registry where the docker image can be pulled from.                                                                                                           | ✅        |
-| AllowedDeploymentPorts    | A list of ports which can be used to deploy a container. When empty a random port between 10,000 and 60,000 is chosen.                                                   | ❌        |
-| ContainerTimeoutSeconds   | Stores how long the container should be running for in seconds.                                                                                                          | ✅        |
-| CreateContainerRetryCount | Stores how many retries should occur when trying to create a container.                                                                                                  | ✅        |
+| Property Name             | Description                                                                                                                                                              | Required | Default Value |
+|---------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|---------------|
+| ContainerHostAddress      | The host address where the deployed container will be accessible. This value is used to send a message to the pull request with a link to where the container is hosted. | ✅        |               |
+| ImageName                 | The name of the docker image containing your application.                                                                                                                | ✅        |               |
+| ImageRegistry             | The docker registry where the docker image can be pulled from.                                                                                                           | ✅        |               |
+| AllowedDeploymentPorts    | A list of ports which can be used to deploy a container. When empty a random port between 10,000 and 60,000 is chosen.                                                   | ❌        |               |
+| ContainerTimeoutSeconds   | Stores how long the container should be running for in seconds.                                                                                                          | ✅        |               |
+| CreateContainerRetryCount | Stores how many retries should occur when trying to create a container.                                                                                                  | ✅        |               |
+| ColdStartEnabled          | If true containers will be paused when created and will start when a user navigates to the environment link.                                                             | ❌        | false         |
 
 ### Azure Repos (Optional, required when GitProvider is AzureRepos)
 
