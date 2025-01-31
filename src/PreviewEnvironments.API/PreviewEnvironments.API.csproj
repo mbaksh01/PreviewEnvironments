@@ -25,4 +25,10 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="Configurations\ProReviseConfiguration.json" />
+    <_ContentIncludedByDefault Remove="Configurations\ProStudyConfiguration.json" />
+    <_ContentIncludedByDefault Remove="Configurations\RayzitConfiguration.json" />
+  </ItemGroup>
+
 </Project>
