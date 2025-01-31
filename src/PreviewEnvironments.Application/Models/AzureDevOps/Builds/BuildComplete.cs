@@ -29,4 +29,9 @@ public sealed class BuildComplete
     /// The PR number associated with this build.
     /// </summary>
     public required int PullRequestId { get; set; }
+
+    /// <summary>
+    /// The host address this application is running on.
+    /// </summary>
+    public Uri Host { get; set; } = default!;
 }

@@ -16,19 +16,22 @@ internal sealed partial class CommandHandler : ICommandHandler
     private readonly IContainerTracker _containerTracker;
     private readonly IGitProviderFactory _gitProviderFactory;
     private readonly IConfigurationManager _configurationManager;
+    private readonly IRedirectService _redirectService;
 
     public CommandHandler(
         ILogger<CommandHandler> logger,
         IDockerService dockerService,
         IContainerTracker containerTracker,
         IGitProviderFactory gitProviderFactory,
-        IConfigurationManager configurationManager)
+        IConfigurationManager configurationManager,
+        IRedirectService redirectService)
     {
         _logger = logger;
         _dockerService = dockerService;
         _containerTracker = containerTracker;
         _gitProviderFactory = gitProviderFactory;
         _configurationManager = configurationManager;
+        _redirectService = redirectService;
     }
 
     public async Task HandleAsync(string comment, CommandMetadata metadata, CancellationToken cancellationToken = default)
@@ -89,9 +92,16 @@ internal sealed partial class CommandHandler : ICommandHandler
             Log.ConfigurationNotFound(_logger, newContainer.InternalBuildId);
             return;
         }
+
+        string smallId = newContainer.ContainerId[..12];
         
         Uri address =
             new($"{configuration.Deployment.ContainerHostAddress}:{newContainer.Port}");
+        
+        address = _redirectService.Add(
+            smallId,
+            address,
+            metadata.Host);
         
         await gitProvider.PostPreviewAvailableMessageAsync(
             newContainer.InternalBuildId,

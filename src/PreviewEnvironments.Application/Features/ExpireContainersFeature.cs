@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using PreviewEnvironments.Application.Extensions;
 using PreviewEnvironments.Application.Features.Abstractions;
 using PreviewEnvironments.Application.Models;
 using PreviewEnvironments.Application.Models.Docker;

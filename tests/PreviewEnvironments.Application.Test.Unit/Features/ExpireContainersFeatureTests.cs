@@ -86,9 +86,10 @@ public class ExpireContainersFeatureTests
 
         await _gitProvider
             .Received(expiredContainerCount)
-            .PostExpiredContainerMessageAsync(
+            .PostPullRequestMessageAsync(
                 TestInternalBuildId,
-                buildComplete.PullRequestId);
+                buildComplete.PullRequestId,
+                Arg.Any<string>());
     }
 
     [Fact]

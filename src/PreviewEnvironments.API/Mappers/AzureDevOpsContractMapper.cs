@@ -29,6 +29,80 @@ public static class AzureDevOpsContractMapper
         };
     }
 
+    public static BuildComplete WithHost(this BuildComplete buildComplete, HttpRequest request)
+    {
+        string host = request.Host.Host;
+        string scheme = request.Scheme;
+        int port = request.Host.Port ?? 80;
+
+        if (request.Headers.TryGetValue("Host", out var hostHeader))
+        {
+            if (!string.IsNullOrWhiteSpace(hostHeader))
+            {
+                host = hostHeader!;
+            }
+        }
+        
+        if (request.Headers.TryGetValue("X-Forwarded-Scheme", out var schemeHeader))
+        {
+            if (!string.IsNullOrWhiteSpace(schemeHeader))
+            {
+                scheme = schemeHeader!;
+            }
+        }
+        
+        if (request.Headers.TryGetValue("X-Forwarded-Port", out var portHeader))
+        {
+            _ = int.TryParse(portHeader, out port);
+        }
+
+        UriBuilder hostBuilder = new(scheme, host)
+        {
+            Port = port
+        };
+
+        buildComplete.Host = hostBuilder.Uri;
+
+        return buildComplete;
+    }
+    
+    public static CommandMetadata WithHost(this CommandMetadata metadata, HttpRequest request)
+    {
+        string host = request.Host.Host;
+        string scheme = request.Scheme;
+        int port = request.Host.Port ?? 80;
+
+        if (request.Headers.TryGetValue("Host", out var hostHeader))
+        {
+            if (!string.IsNullOrWhiteSpace(hostHeader))
+            {
+                host = hostHeader!;
+            }
+        }
+        
+        if (request.Headers.TryGetValue("X-Forwarded-Scheme", out var schemeHeader))
+        {
+            if (!string.IsNullOrWhiteSpace(schemeHeader))
+            {
+                scheme = schemeHeader!;
+            }
+        }
+        
+        if (request.Headers.TryGetValue("X-Forwarded-Port", out var portHeader))
+        {
+            _ = int.TryParse(portHeader, out port);
+        }
+
+        UriBuilder hostBuilder = new(scheme, host)
+        {
+            Port = port
+        };
+
+        metadata.Host = hostBuilder.Uri;
+
+        return metadata;
+    }
+
     public static PullRequestUpdated ToModel(this PullRequestUpdatedContract contract)
     {
         PullRequestState state = contract.Resource.Status switch

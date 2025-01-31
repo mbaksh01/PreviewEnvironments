@@ -1,4 +1,5 @@
-﻿using PreviewEnvironments.API.Mappers;
+﻿using Microsoft.AspNetCore.Http;
+using PreviewEnvironments.API.Mappers;
 using PreviewEnvironments.Application.Helpers;
 using PreviewEnvironments.Application.Models.AzureDevOps.Builds;
 using PreviewEnvironments.Application.Models.AzureDevOps.PullRequests;
@@ -136,5 +137,135 @@ public class AzureDevOpsContractMapperTests
             metadata.ProjectName.Should().Be(testProject);
             metadata.RepositoryName.Should().Be(testRepository);
         }
+    }
+
+    [Fact]
+    public void BuildComplete_WithHost_Should_Use_Fallback_When_Headers_Are_Not_Present()
+    {
+        // Arrange
+        BuildComplete buildComplete = new()
+        {
+            BuildStatus = BuildStatus.Succeeded,
+            BuildUrl = new Uri("https://build.address.com"),
+            SourceBranch = "test/branch",
+            InternalBuildId = "TestInternalBuildId",
+            PullRequestId = 1
+        };
+
+        HttpRequest request = new TestHttpRequest
+        {
+            Host = new HostString("test.application.com", 1234),
+            Scheme = "https",
+        };
+
+        // Act
+        buildComplete.WithHost(request);
+
+        // Assert
+        buildComplete.Host.Should().BeEquivalentTo(new Uri("https://test.application.com:1234"));
+    }
+    
+    [Fact]
+    public void BuildComplete_WithHost_Should_Use_Headers()
+    {
+        // Arrange
+        BuildComplete buildComplete = new()
+        {
+            BuildStatus = BuildStatus.Succeeded,
+            BuildUrl = new Uri("https://build.address.com"),
+            SourceBranch = "test/branch",
+            InternalBuildId = "TestInternalBuildId",
+            PullRequestId = 1
+        };
+
+        HttpRequest request = new TestHttpRequest
+        {
+            Host = new HostString("test.application.com", 1234),
+            Scheme = "http",
+            Headers =
+            {
+                ["X-Forwarded-Scheme"] = "https",
+                Host = "test.host.com",
+                ["X-Forwarded-Port"] = "5678"
+            }
+        };
+
+        // Act
+        buildComplete.WithHost(request);
+
+        // Assert
+        buildComplete.Host.Should().BeEquivalentTo(new Uri("https://test.host.com:5678"));
+    }
+    
+    [Fact]
+    public void CommandMetadata_WithHost_Should_Use_Fallback_When_Headers_Are_Not_Present()
+    {
+        // Arrange
+        CommandMetadata metadata = new();
+
+        HttpRequest request = new TestHttpRequest
+        {
+            Host = new HostString("test.application.com", 1234),
+            Scheme = "https",
+        };
+
+        // Act
+        metadata.WithHost(request);
+
+        // Assert
+        metadata.Host.Should().BeEquivalentTo(new Uri("https://test.application.com:1234"));
+    }
+    
+    [Fact]
+    public void CommandMetadata_WithHost_Should_Use_Headers()
+    {
+        // Arrange
+        CommandMetadata metadata = new();
+
+        HttpRequest request = new TestHttpRequest
+        {
+            Host = new HostString("test.application.com", 1234),
+            Scheme = "http",
+            Headers =
+            {
+                ["X-Forwarded-Scheme"] = "https",
+                Host = "test.host.com",
+                ["X-Forwarded-Port"] = "5678"
+            }
+        };
+
+        // Act
+        metadata.WithHost(request);
+
+        // Assert
+        metadata.Host.Should().BeEquivalentTo(new Uri("https://test.host.com:5678"));
+    }
+
+    class TestHttpRequest : HttpRequest
+    {
+        public override Task<IFormCollection> ReadFormAsync(
+            CancellationToken cancellationToken = new CancellationToken())
+        {
+            throw new NotImplementedException();
+        }
+
+        public override HttpContext HttpContext { get; }
+        public override string Method { get; set; }
+        public override string Scheme { get; set; }
+        public override bool IsHttps { get; set; }
+        public override HostString Host { get; set; }
+        public override PathString PathBase { get; set; }
+        public override PathString Path { get; set; }
+        public override QueryString QueryString { get; set; }
+        public override IQueryCollection Query { get; set; }
+        public override string Protocol { get; set; }
+
+        public override IHeaderDictionary Headers { get; } = new HeaderDictionary();
+        public override IRequestCookieCollection Cookies { get; set; }
+        public override long? ContentLength { get; set; }
+        public override string? ContentType { get; set; }
+        public override Stream Body { get; set; }
+        public override bool HasFormContentType { get; }
+        public override IFormCollection Form { get; set; }
     }
 }

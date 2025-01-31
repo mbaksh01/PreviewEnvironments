@@ -32,10 +32,12 @@ public static class ServiceCollectionExtensions
             .AddTransient<IGitProviderFactory, GitProviderFactory>()
             .AddKeyedTransient<IGitProvider, AzureReposGitProvider>(Constants.GitProviders.AzureRepos)
             .AddTransient<IDockerService, DockerService>()
+            .AddTransient<IRedirectService, RedirectService>()
             .AddTransient<ICommandHandler, CommandHandler>()
             .AddTransient<IBuildCompleteFeature, BuildCompleteFeature>()
             .AddTransient<IPullRequestUpdatedFeature, PullRequestUpdatedFeature>()
-            .AddTransient<IExpireContainersFeature, ExpireContainersFeature>();
+            .AddTransient<IExpireContainersFeature, ExpireContainersFeature>()
+            .AddTransient<IRedirectFeature, RedirectFeature>();
         
         _ = services.Configure<ApplicationConfiguration>(options =>
         {

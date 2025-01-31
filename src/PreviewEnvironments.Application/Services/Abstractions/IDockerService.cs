@@ -27,6 +27,9 @@ internal interface IDockerService : IDisposable
     /// <param name="publicPort">Port number which can be used to access the container.</param>
     /// <param name="registry">Registry to pull the image from.</param>
     /// <param name="exposedPort">Port exposed in the docker image.</param>
+    /// <param name="startContainer">
+    /// Indicates whether the container should be started after its been created.
+    /// </param>
     /// <param name="cancellationToken">
     /// Cancellation token used to stop this task.
     /// </param>
@@ -42,6 +45,7 @@ internal interface IDockerService : IDisposable
         int publicPort,
         string registry = "localhost:5002",
         int exposedPort = 80,
+        bool startContainer = true,
         CancellationToken cancellationToken = default
     );
 
@@ -66,6 +70,22 @@ internal interface IDockerService : IDisposable
         int exposedPort = 80,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Starts an existing docker container.
+    /// </summary>
+    /// <param name="containerId">Id of container to start.</param>
+    /// <param name="cancellationToken">
+    /// Cancellation token used to stop this task.
+    /// </param>
+    /// <returns>
+    /// A <see cref="bool"/> indicating the state of the operation.
+    /// <see langword="true"/> when container has been started, otherwise
+    /// <see langword="false"/>.
+    /// </returns>
+    Task<bool> StartContainerAsync(
+        string containerId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Stops a container and removes it and its image.

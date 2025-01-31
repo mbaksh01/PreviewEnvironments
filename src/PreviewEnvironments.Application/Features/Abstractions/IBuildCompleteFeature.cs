@@ -11,8 +11,11 @@ public interface IBuildCompleteFeature
     /// <param name="cancellationToken">
     /// Cancellation token used to stop this task.
     /// </param>
-    /// <returns></returns>
-    Task BuildCompleteAsync(
+    /// <returns>
+    /// A string containing the first 12 characters of the started container.
+    /// <see langword="null"/> when an error occurred.
+    /// </returns>
+    Task<string?> BuildCompleteAsync(
         BuildComplete buildComplete,
         CancellationToken cancellationToken = default);
 }

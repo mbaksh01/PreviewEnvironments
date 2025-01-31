@@ -91,6 +91,13 @@ public class Deployment
     /// container fails to start.
     /// </summary>
     public int CreateContainerRetryCount { get; set; }
+
+    /// <summary>
+    /// Stores where the newly created containers should be running when created
+    /// or paused when created. If <see langword="true"/>, containers will be
+    /// created but not started, otherwise they will be created and started.
+    /// </summary>
+    public bool ColdStartEnabled { get; set; }
 }
 
 /// <summary>

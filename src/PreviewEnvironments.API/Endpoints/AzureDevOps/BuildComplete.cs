@@ -1,6 +1,6 @@
-﻿using PreviewEnvironments.API.Mappers;
+﻿using PreviewEnvironments.API.Endpoints.Environments;
+using PreviewEnvironments.API.Mappers;
 using PreviewEnvironments.Application.Features.Abstractions;
-using PreviewEnvironments.Application.Services.Abstractions;
 using PreviewEnvironments.Contracts.AzureDevOps.v2;
 
 namespace PreviewEnvironments.API.Endpoints.AzureDevOps;
@@ -15,11 +15,16 @@ public static class BuildComplete
             Constants.EndPoints.VSTFS.BuildComplete,
             async (
                 BuildCompleteContract contract,
+                HttpContext context,
                 IBuildCompleteFeature buildCompleteFeature) =>
             {
-                await buildCompleteFeature.BuildCompleteAsync(contract.ToModel());
+                string? smallId = await buildCompleteFeature.BuildCompleteAsync(contract
+                    .ToModel()
+                    .WithHost(context.Request));
 
-                return Results.NoContent();
+                return string.IsNullOrWhiteSpace(smallId)
+                    ? Results.NoContent()
+                    : Results.CreatedAtRoute(EnvironmentRedirect.Name, new { id = smallId });
             })
             .WithName(Name)
             .WithOpenApi();

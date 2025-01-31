@@ -4,6 +4,12 @@ namespace PreviewEnvironments.Application.Extensions;
 
 internal static class GitRepositoryExtensions
 {
+    private const string ExpiredContainerMessage = """
+        Preview environment has been stopped to save resources.
+        To restart the container, follow the link posted to this pull request, re-queue the build or use the command `/pe restart`.
+        If your containers stop too early consider increasing the containerTimeoutSeconds for this project.
+        """;
+    
     public static Task PostContainerNotFoundMessageAsync(
         this IGitProvider gitProvider,
         string internalConfigId,
@@ -43,6 +49,30 @@ internal static class GitRepositoryExtensions
             internalConfigId,
             pullRequestId,
             $"Preview environment available at [{containerAddress}]({containerAddress}).",
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Posts a message to the pull request stating a container has been stopped.
+    /// </summary>
+    /// <param name="gitProvider"></param>
+    /// <param name="internalConfigId">
+    /// Id used to get the correct configuration file.
+    /// </param>
+    /// <param name="pullRequestId">Pull request number to post to.</param>
+    /// <param name="cancellationToken">
+    /// Cancellation token used to stop this task.
+    /// </param>
+    public static Task PostExpiredContainerMessageAsync(
+        this IGitProvider gitProvider,
+        string internalConfigId,
+        int pullRequestId,
+        CancellationToken cancellationToken = default)
+    {
+        return gitProvider.PostPullRequestMessageAsync(
+            internalConfigId,
+            pullRequestId,
+            ExpiredContainerMessage,
             cancellationToken);
     }
 }
